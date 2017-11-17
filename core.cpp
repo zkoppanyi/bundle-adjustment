@@ -95,13 +95,22 @@ int bundle_adjustment(const problem &prob, problem &sol, problem_result &result)
         x0(idx_cam + 0) = cam.f;
         x0(idx_cam + 1) = cam.cx;
         x0(idx_cam + 2) = cam.cy;
+        
+        if (cam.cam_type == CAM_TYPE_DISTORTED)
+        {
+            x0(idx_cam + 3) = cam.k1 / 1e-4;
+            x0(idx_cam + 4) = cam.k2 / 1e-6;
+            x0(idx_cam + 5) = cam.k3 / 1e-10;
+            x0(idx_cam + 6) = cam.p1 / 1e-5;
+            x0(idx_cam + 7) = cam.p2 / 1e-4;           
+        }
     }    
     
     optimizer_result opt_result;
     VectorXd sol_vec = levenberg_marquardt(bundle_adjustment_fn, bundle_adjustment_jacobian, (void*)&sol, x0, TolX, TolY, opt_result);
     //VectorXd sol_vec = simulated_annealing(bundle_adjustment_fn, bundle_adjustment_jacobian, (void*)&sol, x0, TolX, TolY, opt_result);
     result.optimizer_result = opt_result;
-
+    
     for (size_t i = 0; i < sol.n_imgs; i++) 
     {
         img &img = sol.imgs[i];
@@ -121,13 +130,22 @@ int bundle_adjustment(const problem &prob, problem &sol, problem_result &result)
         size_t idx_cam = sol.idx_cams + sol.no_of_cam_var*cam_id;
         cam.f     = sol_vec(idx_cam + 0);
         cam.cx    = sol_vec(idx_cam + 1);
-        cam.cy    = sol_vec(idx_cam + 2);       
+        cam.cy    = sol_vec(idx_cam + 2);      
+        
+        if (cam.cam_type == CAM_TYPE_DISTORTED)
+        {
+            cam.k1 = sol_vec(idx_cam + 3) * 1e-4;
+            cam.k2 = sol_vec(idx_cam + 4) * 1e-6;
+            cam.k3 = sol_vec(idx_cam + 5) * 1e-10;
+            cam.p1 = sol_vec(idx_cam + 6) * 1e-5;
+            cam.p2 = sol_vec(idx_cam + 7) * 1e-4;
+        }
 
    }          
     
 	double r_norm = opt_result.r.norm();        
     result.residual = r_norm;    
-        
+
     return 0;
 }
 
@@ -158,6 +176,14 @@ VectorXd bundle_adjustment_fn(VectorXd x, void* params)
         cam.cx    = x(idx_cam + 1);
         cam.cy    = x(idx_cam + 2);        
         
+        if (cam.cam_type == CAM_TYPE_DISTORTED)
+        {
+            cam.k1 = x(idx_cam + 3) * 1e-4;
+            cam.k2 = x(idx_cam + 4) * 1e-6;
+            /*cam.k3 = x(idx_cam + 5) * 1e-10;
+            cam.p1 = x(idx_cam + 6) * 1e-5;
+            cam.p2 = x(idx_cam + 7) * 1e-4;*/
+        }        
         
         int obj_pts_id = prob->img_pts[i].obj_pts_id;
         object_pt obj_pts = prob->obj_pts[obj_pts_id];
@@ -203,11 +229,20 @@ MatrixXd bundle_adjustment_jacobian(VectorXd x, void* params)
         cam.cx    = x(idx_cam + 1);
         cam.cy    = x(idx_cam + 2);
         
+        if (cam.cam_type == CAM_TYPE_DISTORTED)
+        {
+            cam.k1 = x(idx_cam + 3) * 1e-4;
+            cam.k2 = x(idx_cam + 4) * 1e-6;
+            /*cam.k3 = x(idx_cam + 5) * 1e-10;
+            cam.p1 = x(idx_cam + 6) * 1e-5;
+            cam.p2 = x(idx_cam + 7) * 1e-4;*/
+        }        
+        
         photo_jacobian_problem_exterior::populate(J, i*2, idx_img, obj_pts, img, cam);
         
         if (prob->no_of_cam_var == 8)
         {
-            photo_jacobian_problem_camera_distort::populate(J, i*2, idx_cam, obj_pts, img, cam);
+            photo_jacobian_problem_camera_distort::populate(J, i*2, idx_cam, obj_pts, img, cam, prob->img_pts[i]);
         }
         else
         {

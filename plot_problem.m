@@ -10,8 +10,8 @@ function plot_problem(plot_k, img_pts, imgs, obj_pts, cams, color_in)
         color = color_in;
     end
     
-    cam_scale = 1;
-    %cam_scale = 20;
+    %cam_scale = 1;
+    cam_scale = 20;
     
     % plot cameras
     Rcams = {};

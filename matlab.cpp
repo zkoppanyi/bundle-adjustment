@@ -167,7 +167,10 @@ void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pr
                 LOG_ERROR("cam_type indicates using distortion models but they are not defined in cams!"); 
                 return;
             }
-            
+        }
+        
+        if (camera_m >= 10)
+        {            
             cam.k1  =      GET(camera_arr, i, 5, camera_n);
             cam.k2  =      GET(camera_arr, i, 6, camera_n);
             cam.k3  =      GET(camera_arr, i, 7, camera_n);
@@ -175,6 +178,7 @@ void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pr
             cam.p2  =      GET(camera_arr, i, 9, camera_n);                
             k = 10;            
         }
+
         
         int type_id   = (int)GET(camera_arr, i, k, camera_n);
 
@@ -361,7 +365,22 @@ void create_problem_struct(const problem &prob, mxArray* &ret)
                     }   
       
         n_ret = prob.cams.size();
-        mxArray* cams_arr = mxCreateDoubleMatrix(n_ret, 6, mxREAL);
+        
+        size_t m_cam = 6;        
+        bool is_distort = false;
+        
+        // discover whether we have distorted camera, and return based on that
+        for (size_t i = 0; i < n_ret ; i++)
+        {
+            if (prob.cams[0].cam_type == CAM_TYPE_DISTORTED) 
+            {
+                is_distort = true;
+                m_cam = 11;
+                break;
+            }
+        }
+                
+        mxArray* cams_arr = mxCreateDoubleMatrix(n_ret, m_cam, mxREAL);
         double* cams_ptr = mxGetPr(cams_arr);
         for (size_t i = 0; i < n_ret ; i++)
         {
@@ -371,7 +390,20 @@ void create_problem_struct(const problem &prob, mxArray* &ret)
             GET(cams_ptr, i, 2, n_ret) = cam.f;
             GET(cams_ptr, i, 3, n_ret) = cam.cx;
             GET(cams_ptr, i, 4, n_ret) = cam.cy;
-            GET(cams_ptr, i, 5, n_ret) = static_cast<int>(cam.type);
+            
+            if (is_distort)
+            {
+                GET(cams_ptr, i, 5, n_ret) = cam.k1;
+                GET(cams_ptr, i, 6, n_ret) = cam.k2;
+                GET(cams_ptr, i, 7, n_ret) = cam.k3;
+                GET(cams_ptr, i, 8, n_ret) = cam.p1;
+                GET(cams_ptr, i, 9, n_ret) = cam.p2;
+                GET(cams_ptr, i, 10, n_ret) = static_cast<int>(cam.type);
+            }
+            else
+            {
+                GET(cams_ptr, i, 5, n_ret) = static_cast<int>(cam.type);
+            }
         }   
                 
         n_ret = prob.img_pts.size();
