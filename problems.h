@@ -4,7 +4,7 @@
 #include "matlab.h"
 #include "core.h"
 
-template<bool _cX, bool _cY, bool _cZ, bool _cX0, bool _cY0, bool _cZ0, bool _comega, bool _cphi, bool _ckappa, bool _cf, bool _ccx, bool _ccy, bool _cdc, bool _ck1, bool _ck2, bool _ck3, bool _cp1, bool _cp2>
+template<bool _cX, bool _cY, bool _cZ, bool _cX0, bool _cY0, bool _cZ0, bool _comega, bool _cphi, bool _ckappa, bool _cf, bool _ccx, bool _ccy, bool _ck1, bool _ck2, bool _ck3, bool _cp1, bool _cp2>
 struct photo_jacobian_problem 
 {   
     static const bool cX = _cX;
@@ -22,94 +22,63 @@ struct photo_jacobian_problem
     static const bool ccx = _ccx;
     static const bool ccy = _ccy;
 
-    static const bool cdc = _cdc;
     static const bool ck1 = _ck1;
     static const bool ck2 = _ck2;
     static const bool ck3 = _ck3;
     static const bool cp1 = _cp1;
     static const bool cp2 = _cp2;
     
-    
-    // Populater with Eigen::VectorXd
     void static populate(Eigen::MatrixXd &A, size_t i, size_t k, const Eigen::VectorXd &pt0, const img& img0, const camera& cam0)
     {
-        if ((cf == true) ||  (ccx == true) || (ccy == true))
+        if ((cX == true) && (cY == true) && (cZ == true) && 
+                (cX0 == false) && (cY0 == false) && (cZ0 == false) && (comega == false) && (cphi == false) && (ckappa == false)
+                && (cf == false) && (ccx == false) && (ccy == false))
         {
-            // you cannot call this function on distorted camera model, because it requires to know the image point;
-            // use the other populate method
-            ASSERT(cam0.cam_type != CAM_TYPE_DISTORTED); 
-        } 
-        
-        populate(A, i, k, pt0(0), pt0(1), pt0(2), img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy);
+            populate(A, i, k, pt0(0), pt0(1), pt0(2), img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy);
+        }
     }
 
-    // Populater with Eigen::VectorXd and image point
-    void static populate(Eigen::MatrixXd &A, size_t i, size_t k, const Eigen::VectorXd &pt0, const img& img0, const camera& cam0, const img_pt &pti0)
-    {
-        LOG("itt");
-        populate(A, i, k, pt0(0), pt0(1), pt0(2), img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy, pti0.x, pti0.y, cam0.dc, cam0.k1, cam.k2, cam0.k3, cam0.p1, cam0.p2);
-    }
-
-    // Populater with point3d
     void static populate(Eigen::MatrixXd &A, size_t i, size_t k, const point3d &pt0, const img &img0, const camera &cam0)
     {
-        if ((cf == true) ||  (ccx == true) || (ccy == true))
+        if (cam0.cam_type == CAM_TYPE_DISTORTED)
         {
-            // you cannot call this function on distorted camera model, because it requires to know the image point;
-            // use the other populate method
-            ASSERT(cam0.cam_type != CAM_TYPE_DISTORTED); 
+            img_pt pti0;
+            backproject(pt0, img0, cam, cam0);
+            LOG("Not implemented!");
+            populate(A, i, k, pt0.x, pt0.y, pt0.z, img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy, pti0.x, pti0.y, cam.k1, cam.k2, cam.k3, cam.p1, cam.p2);
         }
-        
-        populate(A, i, k, pt0.x, pt0.y, pt0.z, img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy);
-    }
-    
-    // Populater with point3d and image point
-    void static populate(Eigen::MatrixXd &A, size_t i, size_t k, const point3d &pt0, const img &img0, const camera &cam0, const img_pt &pti0)
-    {
-        if ((cf == true) ||  (ccx == true) || (ccy == true))
+        else
         {
-            // you cannot call this function on distorted camera model, because it requires to know the image point;
-            // use the other populate method
-            ASSERT(cam0.cam_type != CAM_TYPE_DISTORTED); 
+            populate(A, i, k, pt0.x, pt0.y, pt0.z, img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy);
         }
-                
-        populate(A, i, k, pt0.x, pt0.y, pt0.z, img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy, pti0.x, pti0.y, cam0.dc, cam0.k1, cam.k2, cam0.k3, cam0.p1, cam0.p2);
+
     }
-    
-    // Populater with object_pt
+
     void static populate(Eigen::MatrixXd &A, size_t i, size_t k, const object_pt &pt0, const img &img0, const camera &cam0)
     {
-        if ((cf == true) ||  (ccx == true) || (ccy == true))
+        if (cam0.cam_type == CAM_TYPE_DISTORTED)
         {
-            // you cannot call this function on distorted camera model, because it requires to know the image point;
-            // use the other populate method
-            ASSERT(cam0.cam_type != CAM_TYPE_DISTORTED); 
+            LOG("Not implemented!");
+            populate(A, i, k, pt0.x, pt0.y, pt0.z, img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy);
         }
-        
-        populate(A, i, k, pt0.x, pt0.y, pt0.z, img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy);
+        else
+        {
+            populate(A, i, k, pt0.x, pt0.y, pt0.z, img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy);
+        }
     }
-
-    // Populater with object_pt and image point
-    void static populate(Eigen::MatrixXd &A, size_t i, size_t k, const object_pt &pt0, const img &img0, const camera &cam0, const img_pt &pti0)
-    {
-        populate(A, i, k, pt0.x, pt0.y, pt0.z, img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy, pti0.x, pti0.y, cam0.dc, cam0.k1, cam0.k2, cam0.k3, cam0.p1, cam0.p2);
-    }
-
 
     void static populate(Eigen::MatrixXd &A, size_t i, size_t k_in, 
                             double X, double Y, double Z, double X0, double Y0, double Z0, double omega, double phi, double kappa, 
-                            double f, double cx, double cy, double x = 0, double y = 0, double dc = 0, double k1 = 0, double k2 = 0, double k3 = 0, double p1 = 0, double p2 = 0)
+                            double f, double cx, double cy, 
+                            double x = 0, double y = 0, double k1 = 0, double k2 = 0, double k3 = 0, double p1 = 0, double p2 = 0)
     {
-
         // X component
         int k = (int)k_in-1;
         
-        bool is_dist_params = false;
-        double r = sqrt(pow(x - cx, 2) + pow(y - cy,2));
-        if ( (cdc == true) || (ck1 == true) || (ck2 == true) || (ck3 == true) || (cp1 == true) || (cp2 == true) )
-        {           
-            is_dist_params = true;
-        }
+        // for the distortion params
+        double x_hat = x - cx;
+        double y_hat = y - cy;
+        double r = sqrt(pow(x_hat, 2) + pow(y_hat, 2));
         
         // dX
         if(cX == true)
@@ -195,7 +164,7 @@ struct photo_jacobian_problem
         if(ccx== true)
         {
             k++;
-            ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );            
+            ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
             A(i,k) = 1;
         }
 
@@ -203,16 +172,8 @@ struct photo_jacobian_problem
         if(ccy == true)
         {        
             k++;
-            ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );            
-            A(i,k) = 0;
-        }
-        
-         // cdc
-        if(cdc == true)
-        {        
-            k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = (x-cx) / f;
+            A(i,k) = 0;
         }
         
         // ck1
@@ -220,7 +181,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -1 * (x-cx) * pow(r,2);
+            A(i,k) = x_hat*pow(r, 2);
         }
 
         // ck2
@@ -228,7 +189,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -1 * (x-cx) * pow(r,4);
+            A(i,k) = x_hat*pow(r, 4);
         }
         
         // ck3
@@ -236,23 +197,23 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -1 * (x-cx) * pow(r,6);
+            A(i,k) = x_hat*pow(r, 6);
         }
 
         // cp1
-        if(cp1 == true)
+        if(p1 == true)
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -1 * (3*pow((x - cx), 2) + pow((y - cy), 2));
+            A(i,k) = 3*pow(x_hat, 2) + pow(y_hat, 2);
         }
         
         // cp2
-        if(cp2 == true)
+        if(p2 == true)
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -2*(x - cx)*(y - cy);
+            A(i,k) = 2*x_hat*y_hat;
         }
 
         // Y component
@@ -351,16 +312,8 @@ struct photo_jacobian_problem
         if(ccy == true)
         {
             k++;
-            ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );            
-            A(i,k) = 1;
-        }
-        
-         // cdc
-        if(cdc == true)
-        {        
-            k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = (x-cx) / f;
+            A(i,k) = 1;
         }
         
         // ck1
@@ -368,7 +321,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -1 * (y-cy) * pow(r,2);
+            A(i,k) = y_hat*pow(r, 2);
         }
 
         // ck2
@@ -376,7 +329,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -1 * (y-cy) * pow(r,4);
+            A(i,k) = y_hat*pow(r, 4);
         }
         
         // ck3
@@ -384,31 +337,31 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -1 * (y-cy) * pow(r,6);
+            A(i,k) = y_hat*pow(r, 6);
         }
 
         // cp1
-        if(cp1 == true)
+        if(p1 == true)
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -2*(x - cx)*(y - cy);
+            A(i,k) = 2*x_hat*y_hat;
         }
         
         // cp2
-        if(cp2 == true)
+        if(p2 == true)
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -1 * (pow((x - cx), 2) + 3*pow((y - cy), 2));
+            A(i,k) = pow(x_hat, 2) + 3*pow(y_hat, 2);
         }
         
     }
 };
 
-typedef photo_jacobian_problem<true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false> photo_jacobian_problem_triang;
-typedef photo_jacobian_problem<false, false, false, false, false, false, false, false, false, true, true, true, false, false, false, false, false, false> photo_jacobian_problem_camera;
-typedef photo_jacobian_problem<false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true> photo_jacobian_problem_camera_distort;
-typedef photo_jacobian_problem<false, false, false, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false> photo_jacobian_problem_exterior;
+typedef photo_jacobian_problem<true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false> photo_jacobian_problem_triang;
+typedef photo_jacobian_problem<false, false, false, false, false, false, false, false, false, true, true, true, false, false, false, false, false> photo_jacobian_problem_camera;
+typedef photo_jacobian_problem<false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true> photo_jacobian_problem_camera_distort;
+typedef photo_jacobian_problem<false, false, false, true, true, true, true, true, true, false, false, false, false, false, false, false, false> photo_jacobian_problem_exterior;
 
 #endif

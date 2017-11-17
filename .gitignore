@@ -1,9 +1,6 @@
 # Project ignores
 /Eigen
 
-# Matlab ignores
-*.asv
-
 # MEX files
 *.mexw64
 *.mexw32
