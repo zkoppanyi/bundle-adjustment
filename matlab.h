@@ -14,10 +14,14 @@
 #define LOG_WARNING(S) mexPrintf("-! WRN: %s\n", S);
 
 
-#define ASSERT( isOK )        if (!(isOK)) {  \
+/*#define ASSERT( isOK )        if (!(isOK)) {  \
                                     mexPrintf("Assert failed: %s:%s (%s)\n", __FILE__, __LINE__, __FUNCTION__);  \
                                     mexErrMsgTxt("Assertation failed! Exiting...");  \
-                                };
+                                };*/
+                                
+#define ASSERT( isOK )        if (!(isOK)) {  \
+                                    mexPrintf("Assert failed: %s:%s (%s)\n", __FILE__, __LINE__, __FUNCTION__);  \
+                                };                                
  
 #define GET(A,i,j,n) A[(i) + (j)*n]
 

@@ -67,8 +67,8 @@ MatrixXd bundle_adjustment_jacobian(VectorXd x, void* params);
 
 int bundle_adjustment(const problem &prob, problem &sol, problem_result &result)
 {
-    const double TolX = 1e-6;
-	const double TolY = 1e-8;
+    const double TolX = 1e-8;
+	const double TolY = 1e-10;
     
     sol = prob;
     init_problem(sol);
@@ -98,11 +98,12 @@ int bundle_adjustment(const problem &prob, problem &sol, problem_result &result)
         
         if (cam.cam_type == CAM_TYPE_DISTORTED)
         {
-            x0(idx_cam + 3) = cam.k1 / 1e-4;
-            x0(idx_cam + 4) = cam.k2 / 1e-6;
-            x0(idx_cam + 5) = cam.k3 / 1e-10;
-            x0(idx_cam + 6) = cam.p1 / 1e-5;
-            x0(idx_cam + 7) = cam.p2 / 1e-4;           
+            x0(idx_cam + 3) = cam.dc;
+            x0(idx_cam + 4) = cam.k1 / 1e-4;
+            x0(idx_cam + 5) = cam.k2 / 1e-6;
+            x0(idx_cam + 6) = cam.k3 / 1e-10;
+            x0(idx_cam + 7) = cam.p1 / 1e-5;
+            x0(idx_cam + 8) = cam.p2 / 1e-4;           
         }
     }    
     
@@ -134,11 +135,12 @@ int bundle_adjustment(const problem &prob, problem &sol, problem_result &result)
         
         if (cam.cam_type == CAM_TYPE_DISTORTED)
         {
-            cam.k1 = sol_vec(idx_cam + 3) * 1e-4;
-            cam.k2 = sol_vec(idx_cam + 4) * 1e-6;
-            cam.k3 = sol_vec(idx_cam + 5) * 1e-10;
-            cam.p1 = sol_vec(idx_cam + 6) * 1e-5;
-            cam.p2 = sol_vec(idx_cam + 7) * 1e-4;
+            cam.dc = sol_vec(idx_cam + 3);
+            cam.k1 = sol_vec(idx_cam + 4) * 1e-4;
+            cam.k2 = sol_vec(idx_cam + 5) * 1e-6;
+            cam.k3 = sol_vec(idx_cam + 6) * 1e-10;
+            cam.p1 = sol_vec(idx_cam + 7) * 1e-5;
+            cam.p2 = sol_vec(idx_cam + 8) * 1e-4;
         }
 
    }          
@@ -178,11 +180,12 @@ VectorXd bundle_adjustment_fn(VectorXd x, void* params)
         
         if (cam.cam_type == CAM_TYPE_DISTORTED)
         {
-            cam.k1 = x(idx_cam + 3) * 1e-4;
-            cam.k2 = x(idx_cam + 4) * 1e-6;
-            /*cam.k3 = x(idx_cam + 5) * 1e-10;
-            cam.p1 = x(idx_cam + 6) * 1e-5;
-            cam.p2 = x(idx_cam + 7) * 1e-4;*/
+            cam.dc = x(idx_cam + 3);
+            cam.k1 = x(idx_cam + 4) * 1e-4;
+            cam.k2 = x(idx_cam + 5) * 1e-6;
+            cam.k3 = x(idx_cam + 6) * 1e-10;
+            cam.p1 = x(idx_cam + 7) * 1e-5;
+            cam.p2 = x(idx_cam + 8) * 1e-4;
         }        
         
         int obj_pts_id = prob->img_pts[i].obj_pts_id;
@@ -231,16 +234,17 @@ MatrixXd bundle_adjustment_jacobian(VectorXd x, void* params)
         
         if (cam.cam_type == CAM_TYPE_DISTORTED)
         {
-            cam.k1 = x(idx_cam + 3) * 1e-4;
-            cam.k2 = x(idx_cam + 4) * 1e-6;
-            /*cam.k3 = x(idx_cam + 5) * 1e-10;
-            cam.p1 = x(idx_cam + 6) * 1e-5;
-            cam.p2 = x(idx_cam + 7) * 1e-4;*/
+            cam.dc = x(idx_cam + 3);
+            cam.k1 = x(idx_cam + 4) * 1e-4;
+            cam.k2 = x(idx_cam + 5) * 1e-6;
+            cam.k3 = x(idx_cam + 6) * 1e-10;
+            cam.p1 = x(idx_cam + 7) * 1e-5;
+            cam.p2 = x(idx_cam + 8) * 1e-4;
         }        
         
         photo_jacobian_problem_exterior::populate(J, i*2, idx_img, obj_pts, img, cam);
         
-        if (prob->no_of_cam_var == 8)
+        if (cam.cam_type == CAM_TYPE_DISTORTED)
         {
             photo_jacobian_problem_camera_distort::populate(J, i*2, idx_cam, obj_pts, img, cam, prob->img_pts[i]);
         }
@@ -385,8 +389,8 @@ int backproject(const point3d &pt, const img &img, const camera &cam, img_pt &pt
         double x_hat = pti.x - cam.cx;
         double y_hat = pti.y - cam.cy;
         double r = sqrt(pow(x_hat, 2) + pow(y_hat, 2));
-        pti.x -= cam.k1 * pow(r, 3) + cam.k2 * pow(r, 5) + cam.k3 * pow(r, 7) + cam.p1*(pow(r,2) + 2*pow(x_hat,2)) + 2*cam.p2*x_hat*y_hat;
-        pti.y -= cam.k1 * pow(r, 3) + cam.k2 * pow(r, 5) + cam.k3 * pow(r, 7) + 2*cam.p1*x_hat*y_hat + cam.p2*(pow(r,2) + 2*pow(y_hat,2)) ;
+        pti.x += x_hat / cam.f * cam.dc - cam.k1 * x_hat * pow(r, 2) - cam.k2 * x_hat * pow(r, 4) - cam.k3 * x_hat * pow(r, 6) - cam.p1*(pow(r,2) - 2*pow(x_hat,2)) - 2*cam.p2*x_hat*y_hat;
+        pti.y += y_hat / cam.f * cam.dc - cam.k1 * y_hat * pow(r, 2) - cam.k2 * y_hat * pow(r, 4) - cam.k3 * y_hat * pow(r, 6) + 2*cam.p1*x_hat*y_hat + cam.p2*(pow(r,2) + 2*pow(y_hat,2));
     }
     
     return 0;
@@ -429,7 +433,7 @@ int init_problem(problem &prob)
     {
         if (prob.cams[0].cam_type == CAM_TYPE_DISTORTED)
         {
-            prob.no_of_cam_var = 8;
+            prob.no_of_cam_var = 9;
         }
         else
         {

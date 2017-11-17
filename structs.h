@@ -50,6 +50,7 @@ struct camera
     double cy; 
 
     // C++11
+    double dc = 0;
     double k1 = 0;
     double k2 = 0;
     double k3 = 0; 

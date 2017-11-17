@@ -5,10 +5,10 @@ clear variables; clc; close all;
 % Images        : ID, X, Y, Z, omega, phi kappa, cam_id, type
 % Image points  : ID, x, y, img_id, obj_id, type
 
-cam1 = [0.1 0.002 0.005 5e-5 0 0 0 0];
-cam2 = [0.2 0.001 0.006 5e-5 0 0 0 0];
+cam1 = [0.1 0.002 0.005 0 1  10 0 0 0];
+cam2 = [0.2 0.001 0.006 0 10  1 0 0 0];
 
-n_test_pt = 120;
+n_test_pt = 30;
 cams = [1 2 cam1 1; 2 2 cam2 1];
 %cams = [1 1 cam1(1:3) 1; 2 1 cam2(1:3) 1];
 rand_pts = [(rand(n_test_pt, 1))*75, (rand(n_test_pt, 1))*75, (rand(n_test_pt, 1)-0.5)*30];
@@ -29,9 +29,9 @@ img_pts = backproject(img_pts, imgs, obj_pts, cams);
 figure(1);
 plot_problem(1, img_pts, imgs, obj_pts, cams, 'r');
 
-%img_pts(:,2:3) = img_pts(:,2:3) + normrnd(0, 0.0001, size(img_pts, 1), 2);
+img_pts(:,2:3) = img_pts(:,2:3) + normrnd(0, 0.0001, size(img_pts, 1), 2);
 
-cams0 = [1 2 1 1 1 1e-5 0 0 0 0 2; 2 2 1 1 1 1e-5 0 0 0 0 2];
+cams0 = [1 2 1 1 1 0 0 0 0 0 0 2; 2 2 1 1 1 0 0 0 0 0 0 2];
 %cams0 = [1 1 1 1 1 2; 2 1 1 1 1 2];
 
 imgs0 = [1 0 0 100   0 0 0 1 2;
@@ -42,20 +42,19 @@ imgs0 = [1 0 0 100   0 0 0 1 2;
          6 0 0 50   0 0 0 2 2;
          7 0 65 50  0 0 0 2 2;
          8 65 65 50  0 0 0 2 2];
-imgs0 = imgs;
-%imgs0(:,2:4) = imgs(:,2:4) + (rand(size(imgs, 1), 3) - 0.5)*10;     
+%imgs0 = imgs;
 
-% first solve without distortions
+%first solve without distortions
 cams0(:,2) = 1;
 [sol, stoch] = ba_algo(img_pts, imgs0, obj_pts, cams0);
-
+cams0(:, 3:5) = sol.cams(:, 3:5);
 cams0(:,2) = 2;
-[sol, stoch] = ba_algo(img_pts, sol.imgs, sol.obj_pts, cams0);
+
+[sol, stoch] = ba_algo(img_pts, sol.imgs, obj_pts, cams0);
 sol.imgs
 sol.cams
 
-prob = sol;
-show_radial_distortion_profile;
+show_radial_distortion_profile(sol, 0);
 
 %stochastics
 diagMxx = diag(stoch.Mxx);
