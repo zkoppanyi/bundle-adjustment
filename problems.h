@@ -4,7 +4,7 @@
 #include "matlab.h"
 #include "core.h"
 
-template<bool _cX, bool _cY, bool _cZ, bool _cX0, bool _cY0, bool _cZ0, bool _comega, bool _cphi, bool _ckappa, bool _cf, bool _ccx, bool _ccy, bool _cdc, bool _ck1, bool _ck2, bool _ck3, bool _cp1, bool _cp2>
+template<bool _cX, bool _cY, bool _cZ, bool _cX0, bool _cY0, bool _cZ0, bool _comega, bool _cphi, bool _ckappa, bool _cf, bool _ccx, bool _ccy, bool _ck1, bool _ck2, bool _ck3, bool _cp1, bool _cp2>
 struct photo_jacobian_problem 
 {   
     static const bool cX = _cX;
@@ -22,7 +22,6 @@ struct photo_jacobian_problem
     static const bool ccx = _ccx;
     static const bool ccy = _ccy;
 
-    static const bool cdc = _cdc;
     static const bool ck1 = _ck1;
     static const bool ck2 = _ck2;
     static const bool ck3 = _ck3;
@@ -46,8 +45,7 @@ struct photo_jacobian_problem
     // Populater with Eigen::VectorXd and image point
     void static populate(Eigen::MatrixXd &A, size_t i, size_t k, const Eigen::VectorXd &pt0, const img& img0, const camera& cam0, const img_pt &pti0)
     {
-        LOG("itt");
-        populate(A, i, k, pt0(0), pt0(1), pt0(2), img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy, pti0.x, pti0.y, cam0.dc, cam0.k1, cam.k2, cam0.k3, cam0.p1, cam0.p2);
+        populate(A, i, k, pt0(0), pt0(1), pt0(2), img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy, pti0.x, pti0.y, cam.k1, cam0.k2, cam0.k3, cam0.p1, cam0.p2);
     }
 
     // Populater with point3d
@@ -73,7 +71,7 @@ struct photo_jacobian_problem
             ASSERT(cam0.cam_type != CAM_TYPE_DISTORTED); 
         }
                 
-        populate(A, i, k, pt0.x, pt0.y, pt0.z, img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy, pti0.x, pti0.y, cam0.dc, cam0.k1, cam.k2, cam0.k3, cam0.p1, cam0.p2);
+        populate(A, i, k, pt0.x, pt0.y, pt0.z, img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy, pti0.x, pti0.y, cam0.k1, cam.k2, cam0.k3, cam0.p1, cam0.p2);
     }
     
     // Populater with object_pt
@@ -92,21 +90,22 @@ struct photo_jacobian_problem
     // Populater with object_pt and image point
     void static populate(Eigen::MatrixXd &A, size_t i, size_t k, const object_pt &pt0, const img &img0, const camera &cam0, const img_pt &pti0)
     {
-        populate(A, i, k, pt0.x, pt0.y, pt0.z, img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy, pti0.x, pti0.y, cam0.dc, cam0.k1, cam0.k2, cam0.k3, cam0.p1, cam0.p2);
+        populate(A, i, k, pt0.x, pt0.y, pt0.z, img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy, pti0.x, pti0.y, cam0.k1, cam0.k2, cam0.k3, cam0.p1, cam0.p2);
     }
 
 
     void static populate(Eigen::MatrixXd &A, size_t i, size_t k_in, 
                             double X, double Y, double Z, double X0, double Y0, double Z0, double omega, double phi, double kappa, 
-                            double f, double cx, double cy, double x = 0, double y = 0, double dc = 0, double k1 = 0, double k2 = 0, double k3 = 0, double p1 = 0, double p2 = 0)
+                            double f, double cx, double cy, double x = 0, double y = 0, double k1 = 0, double k2 = 0, double k3 = 0, double p1 = 0, double p2 = 0)
     {
 
         // X component
         int k = (int)k_in-1;
         
         bool is_dist_params = false;
-        double r = sqrt(pow(x - cx, 2) + pow(y - cy,2));
-        if ( (cdc == true) || (ck1 == true) || (ck2 == true) || (ck3 == true) || (cp1 == true) || (cp2 == true) )
+        double r2 = pow(cx - x, 2) + pow(cy - y,2);
+        double r = sqrt(r2);
+        if ( (ck1 == true) || (ck2 == true) || (ck3 == true) || (cp1 == true) || (cp2 == true) )
         {           
             is_dist_params = true;
         }
@@ -195,24 +194,32 @@ struct photo_jacobian_problem
         if(ccx== true)
         {
             k++;
-            ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );            
-            A(i,k) = 1;
+            ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
+            
+            if (is_dist_params)
+            {
+                A(i,k) = k1*pow(r,2) - 2*p2*(cy - y) + k2*pow(r,4) + k3*pow(r,6) + (cx - x)*(k1*(2*cx - 2*x) + 2*k2*pow(r,2)*(2*cx - 2*x) + 3*k3*pow(r,4)*(2*cx - 2*x)) - p1*(6*cx - 6*x) + 1;
+           }
+            else
+            {
+                A(i,k) = 1;
+            }
         }
 
         // cy
         if(ccy == true)
         {        
             k++;
-            ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );            
-            A(i,k) = 0;
-        }
-        
-         // cdc
-        if(cdc == true)
-        {        
-            k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = (x-cx) / f;
+            
+            if (is_dist_params)
+            {
+                A(i,k) = -2*p2*(cx - x) + (cx - x)*(k1*(2*cy - 2*y) + 2*k2*pow(r, 2)*(2*cy - 2*y) + 3*k3*pow(r, 4)*(2*cy - 2*y)) - p1*(2*cy - 2*y);
+            }
+            else
+            {
+                A(i,k) = 0;
+            }
         }
         
         // ck1
@@ -220,7 +227,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -1 * (x-cx) * pow(r,2);
+            A(i,k) = pow(r,2) * (cx - x);
         }
 
         // ck2
@@ -228,7 +235,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -1 * (x-cx) * pow(r,4);
+            A(i,k) =  pow(r,4) * (cx - x);
         }
         
         // ck3
@@ -236,7 +243,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -1 * (x-cx) * pow(r,6);
+            A(i,k) =  pow(r,6) * (cx - x);
         }
 
         // cp1
@@ -244,7 +251,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -1 * (3*pow((x - cx), 2) + pow((y - cy), 2));
+            A(i,k) = - 3*pow(cx - x, 2) - pow(cy - y, 2);
         }
         
         // cp2
@@ -252,7 +259,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -2*(x - cx)*(y - cy);
+            A(i,k) = -2*(cx - x)*(cy - y);
         }
 
         // Y component
@@ -344,23 +351,32 @@ struct photo_jacobian_problem
         {
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = 0;
+
+            if (is_dist_params)
+            {
+                A(i,k) = (cy - y)*(k1*(2*cx - 2*x) + 2*k2*pow(r,2)*(2*cx - 2*x) + 3*k3*pow(r,4)*(2*cx - 2*x)) - 2*p1*(cy - y) - p2*(2*cx - 2*x);
+            }
+            else
+            {
+                A(i,k) = 0;
+            }
+            
         }
 
         // cy
         if(ccy == true)
         {
             k++;
-            ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );            
-            A(i,k) = 1;
-        }
-        
-         // cdc
-        if(cdc == true)
-        {        
-            k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = (x-cx) / f;
+            
+            if (is_dist_params)
+            {
+                A(i,k) = k1*pow(r,2) - 2*p1*(cx - x) + k2*pow(r,4) + k3*pow(r,6) + (cy - y)*(k1*(2*cy - 2*y) + 2*k2*pow(r,2)*(2*cy - 2*y) + 3*k3*pow(r,4)*(2*cy - 2*y)) - p2*(6*cy - 6*y) + 1; 
+            }
+            else
+            {
+                A(i,k) = 1;
+            }
         }
         
         // ck1
@@ -368,7 +384,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -1 * (y-cy) * pow(r,2);
+            A(i,k) = pow(r,2)*(cy - y);
         }
 
         // ck2
@@ -376,7 +392,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -1 * (y-cy) * pow(r,4);
+            A(i,k) = pow(r,4)*(cy - y);
         }
         
         // ck3
@@ -384,7 +400,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -1 * (y-cy) * pow(r,6);
+            A(i,k) = pow(r,6)*(cy - y);
         }
 
         // cp1
@@ -392,7 +408,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -2*(x - cx)*(y - cy);
+            A(i,k) = -2*(cx - x)*(cy - y);
         }
         
         // cp2
@@ -400,15 +416,15 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -1 * (pow((x - cx), 2) + 3*pow((y - cy), 2));
+            A(i,k) = -1 * pow((cx - x), 2) - 3*pow((cy - y), 2);
         }
         
     }
 };
 
-typedef photo_jacobian_problem<true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false> photo_jacobian_problem_triang;
-typedef photo_jacobian_problem<false, false, false, false, false, false, false, false, false, true, true, true, false, false, false, false, false, false> photo_jacobian_problem_camera;
-typedef photo_jacobian_problem<false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true> photo_jacobian_problem_camera_distort;
-typedef photo_jacobian_problem<false, false, false, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false> photo_jacobian_problem_exterior;
+typedef photo_jacobian_problem<true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false> photo_jacobian_problem_triang;
+typedef photo_jacobian_problem<false, false, false, false, false, false, false, false, false, true, true, true, false, false, false, false, false> photo_jacobian_problem_camera;
+typedef photo_jacobian_problem<false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true> photo_jacobian_problem_camera_distort;
+typedef photo_jacobian_problem<false, false, false, true, true, true, true, true, true, false, false, false, false, false, false, false, false> photo_jacobian_problem_exterior;
 
 #endif

@@ -1,3 +1,5 @@
+#include <Eigen/IterativeLinearSolvers>
+        
 #include "optim.h"
 #include <cmath>
 #include <iostream>
@@ -69,8 +71,15 @@ VectorXd levenberg_marquardt(VectorXd (*fn)(VectorXd, void*), MatrixXd (*jacobia
     {
         // negative solution increment
         //d = SolveLinearEquationSystem(A.Add((l.Multiply(D))), v);
-        d = (A + l*D).ldlt().solve(v); // use ldlt for stability.
+        //d = (A + l*D).ldlt().solve(v); // use ldlt for stability.
         //d = (A + l*D).llt().solve(v); 
+        
+        d = (A + l*D).householderQr().solve(v);
+        
+        /*LeastSquaresConjugateGradient<SparseMatrix<double> > lscg;
+        lscg.compute( (A + l*D).sparseView() );
+        d = lscg.solve(v);*/
+        
         VectorXd xd = x - d;
         VectorXd rd = fn(xd, params);
 

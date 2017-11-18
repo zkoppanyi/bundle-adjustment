@@ -42,8 +42,8 @@ R33 = @(omega,phi,kappa) cos(omega).*cos(phi);
 
 syms X X0 Y Y0 Z Z0 f f x y cx cy phi kappa omega k1 k2 k3 p1 p2
 r = sqrt((x-cx)^2 + (y-cy)^2);
-x2 = - f * (R11(omega,phi,kappa).*(X-X0) + R12(omega,phi,kappa).*(Y-Y0) + R13(omega,phi,kappa).*(Z-Z0)) ./ (R31(omega,phi,kappa).*(X-X0) + R32(omega,phi,kappa).*(Y-Y0) + R33(omega,phi,kappa).*(Z-Z0)) + cx + k1 * r^3 + k2 * r^5 + k3 * r^7 + p1*(r^2 + 2*(x-cx)^2) + 2*p2*(x-cx)*(y-cy);
-y2 = - f * (R21(omega,phi,kappa).*(X-X0) + R22(omega,phi,kappa).*(Y-Y0) + R23(omega,phi,kappa).*(Z-Z0)) ./ (R31(omega,phi,kappa).*(X-X0) + R32(omega,phi,kappa).*(Y-Y0) + R33(omega,phi,kappa).*(Z-Z0)) + cy + k1 * r^3 + k2 * r^5 + k3 * r^7 + 2*p1*(x-cx)*(y-cy) + p2*(r^2 + 2*(y-cy)^2);
+x2 = - f * (R11(omega,phi,kappa).*(X-X0) + R12(omega,phi,kappa).*(Y-Y0) + R13(omega,phi,kappa).*(Z-Z0)) ./ (R31(omega,phi,kappa).*(X-X0) + R32(omega,phi,kappa).*(Y-Y0) + R33(omega,phi,kappa).*(Z-Z0)) + cx - (x-cx)*(k1 * r^2 + k2 * r^4 + k3 * r^6) - p1*(r^2 + 2*(x-cx)^2) - 2*p2*(x-cx)*(y-cy);
+y2 = - f * (R21(omega,phi,kappa).*(X-X0) + R22(omega,phi,kappa).*(Y-Y0) + R23(omega,phi,kappa).*(Z-Z0)) ./ (R31(omega,phi,kappa).*(X-X0) + R32(omega,phi,kappa).*(Y-Y0) + R33(omega,phi,kappa).*(Z-Z0)) + cy - (y-cy)*(k1 * r^2 + k2 * r^4 + k3 * r^6) - 2*p1*(x-cx)*(y-cy) - p2*(r^2 + 2*(y-cy)^2);
 
 %syms x_hat y_hat
 %x = - f * (R11(omega,phi,kappa).*(X-X0) + R12(omega,phi,kappa).*(Y-Y0) + R13(omega,phi,kappa).*(Z-Z0)) ./ (R31(omega,phi,kappa).*(X-X0) + R32(omega,phi,kappa).*(Y-Y0) + R33(omega,phi,kappa).*(Z-Z0)) + cx - k1 * r^3 + k2 * r^5 + k3 * r^7 + p1*(r^2 + 2*(x-cx)^2) + 2*p2*(x-cx)*(y-cy);
