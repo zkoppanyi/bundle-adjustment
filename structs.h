@@ -5,11 +5,11 @@
 
 #define CAM_TYPE_DISTORTED 2
 
-enum var_type
+typedef enum 
 {
     KNOWN = 1,
     UNKNOWN = 2
-};
+} var_type;
 
 struct point2d
 {

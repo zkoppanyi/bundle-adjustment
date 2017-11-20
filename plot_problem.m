@@ -10,8 +10,8 @@ function plot_problem(plot_k, img_pts, imgs, obj_pts, cams, color_in)
         color = color_in;
     end
     
-    cam_scale = 1;
-    %cam_scale = 20;
+    %cam_scale = 1;
+    cam_scale = 20;
     
     % plot cameras
     Rcams = {};
@@ -68,12 +68,12 @@ function plot_problem(plot_k, img_pts, imgs, obj_pts, cams, color_in)
         plot3(cam_x + pti2(1) * cam_scale, cam_y + pti2(2) * cam_scale, cam_z + pti2(3) * cam_scale, 'r.','MarkerSize', 12);
     end
     
-    xlabel("X"); ylabel("Y"); zlabel("Z");
+    xlabel('X'); ylabel('Y'); zlabel('Z');
     grid on;
     axis equal;
     
     function figScroll(src, callbackdata)
-        disp("scroll")
+        disp('scroll')
 %       if callbackdata.VerticalScrollCount > 0 
 %          xd = h.XData;
 %          % This code uses dot notation to set properties

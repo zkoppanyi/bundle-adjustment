@@ -3,7 +3,8 @@
 #include "optim.h"
 #include <cmath>
 #include <iostream>
-#include <random>
+//#include <random>
+//#include "matlab.h"
 
 using namespace std;
 using namespace Eigen;
@@ -29,7 +30,7 @@ bool any_greater_than(VectorXd v1, VectorXd v2)
 
 VectorXd levenberg_marquardt(VectorXd (*fn)(VectorXd, void*), MatrixXd (*jacobian)(VectorXd, void*), void* params, VectorXd x, const double TolX, const double TolY, optimizer_result &result)
 {
-	const unsigned int MaximumIterationNumber = 200;
+	const unsigned int MaximumIterationNumber = 500;
 
 	// Residual at starting point
     VectorXd r = fn(x, params);
@@ -71,10 +72,10 @@ VectorXd levenberg_marquardt(VectorXd (*fn)(VectorXd, void*), MatrixXd (*jacobia
     {
         // negative solution increment
         //d = SolveLinearEquationSystem(A.Add((l.Multiply(D))), v);
-        //d = (A + l*D).ldlt().solve(v); // use ldlt for stability.
+        d = (A + l*D).ldlt().solve(v); // use ldlt for stability.
         //d = (A + l*D).llt().solve(v); 
         
-        d = (A + l*D).householderQr().solve(v);
+        //d = (A + l*D).householderQr().solve(v);
         
         /*LeastSquaresConjugateGradient<SparseMatrix<double> > lscg;
         lscg.compute( (A + l*D).sparseView() );
@@ -161,7 +162,7 @@ VectorXd levenberg_marquardt(VectorXd (*fn)(VectorXd, void*), MatrixXd (*jacobia
  *****************************************************
  */
 
-VectorXd simulated_annealing(VectorXd (*fn)(VectorXd, void*), MatrixXd (*jacobian)(VectorXd, void*), void* params, VectorXd x, const double TolX, const double TolY, optimizer_result &result)
+/*VectorXd simulated_annealing(VectorXd (*fn)(VectorXd, void*), MatrixXd (*jacobian)(VectorXd, void*), void* params, VectorXd x, const double TolX, const double TolY, optimizer_result &result)
 {
     const double lower_bound = -10;
     const double upper_bound = 10;
@@ -197,5 +198,5 @@ VectorXd simulated_annealing(VectorXd (*fn)(VectorXd, void*), MatrixXd (*jacobia
     result = best_result;
     
     return best_sol;
-}
+}*/
 

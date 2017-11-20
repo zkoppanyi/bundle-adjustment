@@ -184,8 +184,8 @@ void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pr
 
         switch(type_id)
         {
-            case static_cast<int>(var_type::KNOWN)   : cam.type = var_type::KNOWN; break;
-            case static_cast<int>(var_type::UNKNOWN) : cam.type = var_type::UNKNOWN; break;
+            case static_cast<int>(KNOWN)   : cam.type = KNOWN; break;
+            case static_cast<int>(UNKNOWN) : cam.type = UNKNOWN; break;
             default: 
                 LOG2I("Invalid record type at ", (int)i+1); 
                 LOG2I("Input record type: ", type_id); 
@@ -216,8 +216,8 @@ void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pr
         
          switch(type_id)
         {
-            case static_cast<int>(var_type::KNOWN)   : pt3d.type = var_type::KNOWN; break;
-            case static_cast<int>(var_type::UNKNOWN) : pt3d.type = var_type::UNKNOWN; break;
+            case static_cast<int>(KNOWN)   : pt3d.type = KNOWN; break;
+            case static_cast<int>(UNKNOWN) : pt3d.type = UNKNOWN; break;
             default: 
                 LOG2I("Invalid record type at ", (int)i+1); 
                 LOG2I("Input record type: ", type_id); 
@@ -252,8 +252,8 @@ void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pr
         
         switch(type_id)
         {
-            case static_cast<int>(var_type::KNOWN)   : img.type = var_type::KNOWN; break;
-            case static_cast<int>(var_type::UNKNOWN) : img.type = var_type::UNKNOWN; break;
+            case static_cast<int>(KNOWN)   : img.type = KNOWN; break;
+            case static_cast<int>(UNKNOWN) : img.type = UNKNOWN; break;
             default: 
                 LOG2I("Invalid record type at ", (int)i+1); 
                 LOG2I("Input record type: ", type_id); 
@@ -292,8 +292,8 @@ void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pr
         
         switch(type_id)
         {
-            case static_cast<int>(var_type::KNOWN)   : pti.type = var_type::KNOWN; break;
-            case static_cast<int>(var_type::UNKNOWN) : pti.type = var_type::UNKNOWN; break;
+            case static_cast<int>(KNOWN)   : pti.type = KNOWN; break;
+            case static_cast<int>(UNKNOWN) : pti.type = UNKNOWN; break;
             default: 
                 LOG2I("Invalid record type at ", (int)i+1); 
                 LOG2I("Input record type: ", type_id); 

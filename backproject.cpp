@@ -49,7 +49,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
             backproject(obj_pt, img, cam, pti);
             pti.id = k;
             pti.obj_pts_id = i;
-            pti.type = var_type::KNOWN;
+            pti.type = KNOWN;
 
             GET(ret, k, 0, n_ret) = pti.id + 1;
             GET(ret, k, 1, n_ret) = pti.x;

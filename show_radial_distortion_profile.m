@@ -29,6 +29,6 @@ function show_radial_distortion_profile(prob, is_plot)
             grid on;
         end
 
-        fprintf("Cam #%i  %.3e %.3e %.3e %.3e %.3e\n", i,  k1, k2, k3, p1, p2) ;
+        fprintf('Cam #%i  %.3e %.3e %.3e %.3e %.3e\n', i,  k1, k2, k3, p1, p2) ;
     end
 

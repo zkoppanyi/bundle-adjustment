@@ -45,7 +45,7 @@ struct photo_jacobian_problem
     // Populater with Eigen::VectorXd and image point
     void static populate(Eigen::MatrixXd &A, size_t i, size_t k, const Eigen::VectorXd &pt0, const img& img0, const camera& cam0, const img_pt &pti0)
     {
-        populate(A, i, k, pt0(0), pt0(1), pt0(2), img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy, pti0.x, pti0.y, cam.k1, cam0.k2, cam0.k3, cam0.p1, cam0.p2);
+        populate(A, i, k, pt0(0), pt0(1), pt0(2), img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy, pti0.x, pti0.y, cam0.k1, cam0.k2, cam0.k3, cam0.p1, cam0.p2);
     }
 
     // Populater with point3d
@@ -71,7 +71,7 @@ struct photo_jacobian_problem
             ASSERT(cam0.cam_type != CAM_TYPE_DISTORTED); 
         }
                 
-        populate(A, i, k, pt0.x, pt0.y, pt0.z, img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy, pti0.x, pti0.y, cam0.k1, cam.k2, cam0.k3, cam0.p1, cam0.p2);
+        populate(A, i, k, pt0.x, pt0.y, pt0.z, img0.x, img0.y, img0.z, img0.omega, img0.phi, img0.kappa, cam0.f, cam0.cx, cam0.cy, pti0.x, pti0.y, cam0.k1, cam0.k2, cam0.k3, cam0.p1, cam0.p2);
     }
     
     // Populater with object_pt
@@ -102,6 +102,7 @@ struct photo_jacobian_problem
         // X component
         int k = (int)k_in-1;
         
+        //printf("%.3f, %.3f, %.3f, %.3f, %.3f\n", x, y, k1, k2, k3);
         bool is_dist_params = false;
         double r2 = pow(cx - x, 2) + pow(cy - y,2);
         double r = sqrt(r2);
@@ -427,4 +428,5 @@ typedef photo_jacobian_problem<false, false, false, false, false, false, false, 
 typedef photo_jacobian_problem<false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true> photo_jacobian_problem_camera_distort;
 typedef photo_jacobian_problem<false, false, false, true, true, true, true, true, true, false, false, false, false, false, false, false, false> photo_jacobian_problem_exterior;
 
+        
 #endif
