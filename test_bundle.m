@@ -6,8 +6,8 @@ clear variables; clc; close all;
 % Image points  : ID, x, y, img_id, obj_id, type
 
 scale = 4.87e-6;
-cam1 = [0.05 0 0 3.5*1e-8 0 0 0 0];
-cam2 = [0.02 0 0 3.5*1e-8  0 0 0 0];
+cam1 = [0.05 -0.1*1e-4 0.1*1e-6 3.5*1e-8 -2.5*1e-11 0 -2.5*1e-8 -2.5*1e-8];
+cam2 = [0.02 0.1*1e-4 -0.2*1e-6 3.5*1e-8 -2.5*1e-12 0 -2.5*1e-8 -2.5*1e-8];
 cams = [1 2 cam1 1; 2 2 cam2 1];
 
 % n_test_pt = 120;
@@ -69,10 +69,10 @@ imgs0 = [1 0 0 100   0 0 0 1 2;
 %first solve without distortions
 cams0(:,2) = 1;
 [sol, stoch] = ba_algo(img_pts, imgs0, obj_pts, cams0);
+cams0(:, 3:5) = sol.cams(:, 3:5);
 
 cams0(:,2) = 2;
 [sol, stoch] = ba_algo(img_pts, sol.imgs, obj_pts, cams0);
-%cams0(:, 3:5) = sol.cams(:, 3:5);
 img_pts_ud2 = backproject(img_pts, sol.imgs, obj_pts, sol.cams);
 plot_problem(1, sol.img_pts, sol.imgs, sol.obj_pts, sol.cams, 'g');
 
@@ -89,18 +89,6 @@ plot(img_pts_ud2(idx,2), img_pts_ud2(idx,3), 'go');
 
 sol.cams
 show_radial_distortion_profile(sol, 0);
-% return;
-% 
-% 
-% cams0(:,2) = 1;
-% [sol, stoch] = ba_algo(img_pts, imgs0, obj_pts, cams0);
-% %cams0(:, 3:5) = sol.cams(:, 3:5);
-% cams0(:,2) = 2;
-% [sol, stoch] = ba_algo(img_pts, sol.imgs, obj_pts, cams0);
-% sol.imgs
-% sol.cams
-% 
-% show_radial_distortion_profile(sol, 0);
 
 %stochastics
 diagMxx = diag(stoch.Mxx);

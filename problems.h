@@ -104,7 +104,7 @@ struct photo_jacobian_problem
         
         //printf("%.3f, %.3f, %.3f, %.3f, %.3f\n", x, y, k1, k2, k3);
         bool is_dist_params = false;
-        double r2 = pow(cx - x, 2) + pow(cy - y,2);
+        double r2 = pow(x - cx, 2) + pow(y - cy,2);
         double r = sqrt(r2);
         if ( (ck1 == true) || (ck2 == true) || (ck3 == true) || (cp1 == true) || (cp2 == true) )
         {           
@@ -200,7 +200,7 @@ struct photo_jacobian_problem
             if (is_dist_params)
             {
                 A(i,k) = k1*pow(r,2) - 2*p2*(cy - y) + k2*pow(r,4) + k3*pow(r,6) + (cx - x)*(k1*(2*cx - 2*x) + 2*k2*pow(r,2)*(2*cx - 2*x) + 3*k3*pow(r,4)*(2*cx - 2*x)) - p1*(6*cx - 6*x) + 1;
-           }
+            }
             else
             {
                 A(i,k) = 1;
@@ -228,7 +228,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = pow(r,2) * (cx - x);
+            A(i,k) = -1 * pow(r,2) * (x - cx);
         }
 
         // ck2
@@ -236,7 +236,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) =  pow(r,4) * (cx - x);
+            A(i,k) = -1 *  pow(r,4) * (x - cx);
         }
         
         // ck3
@@ -244,7 +244,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) =  pow(r,6) * (cx - x);
+            A(i,k) = -1 * pow(r,6) * (x - cx);
         }
 
         // cp1
@@ -252,7 +252,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = - 3*pow(cx - x, 2) - pow(cy - y, 2);
+            A(i,k) = - 3*pow(x, 2) - pow(y, 2);
         }
         
         // cp2
@@ -260,7 +260,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -2*(cx - x)*(cy - y);
+            A(i,k) = -2*(x)*(y);
         }
 
         // Y component
@@ -385,7 +385,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = pow(r,2)*(cy - y);
+            A(i,k) = -1 * pow(r,2)*(y - cy);
         }
 
         // ck2
@@ -393,7 +393,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = pow(r,4)*(cy - y);
+            A(i,k) = -1 * pow(r,4)*(y - cy);
         }
         
         // ck3
@@ -401,7 +401,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = pow(r,6)*(cy - y);
+            A(i,k) = -1 * pow(r,6)*(y - cy);
         }
 
         // cp1
@@ -409,7 +409,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -2*(cx - x)*(cy - y);
+            A(i,k) = -2*(x)*(y);
         }
         
         // cp2
@@ -417,7 +417,7 @@ struct photo_jacobian_problem
         {        
             k++;
             ASSERT( (0 <= i) && (i < A.rows()) && (0 <= k) && (k < A.cols()) );
-            A(i,k) = -1 * pow((cx - x), 2) - 3*pow((cy - y), 2);
+            A(i,k) = -1 * pow((x), 2) - 3*pow((y), 2);
         }
         
     }

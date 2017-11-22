@@ -260,6 +260,120 @@ MatrixXd bundle_adjustment_jacobian(VectorXd x, void* params)
 	return J;
 }
 
+/*
+ *****************************************************
+ * Backprojection
+ *****************************************************
+ */
+
+
+int backproject(const object_pt &obj_pt, const img &img, const camera &cam, img_pt &pti)
+{
+    point3d pt3d;
+    pt3d.x = obj_pt.x;
+    pt3d.y = obj_pt.y;
+    pt3d.z = obj_pt.z;    
+    return backproject(pt3d, img, cam, pti);
+}
+
+int backproject(const point3d &pt, const img &img, const camera &cam, img_pt &pti)
+{
+    double R11 = cos(img.phi)*cos(img.kappa);
+    double R12 = -cos(img.phi)*sin(img.kappa);
+    double R13 = sin(img.phi);
+    double R21 = cos(img.omega)*sin(img.kappa)+sin(img.omega)*sin(img.phi)*cos(img.kappa);
+    double R22 = cos(img.omega)*cos(img.kappa)-sin(img.omega)*sin(img.phi)*sin(img.kappa);
+    double R23 = -sin(img.omega)*cos(img.phi);
+    double R31 = sin(img.omega)*sin(img.kappa)-cos(img.omega)*sin(img.phi)*cos(img.kappa);
+    double R32 = sin(img.omega)*cos(img.kappa)+cos(img.omega)*sin(img.phi)*sin(img.kappa);
+    double R33 = cos(img.omega)*cos(img.phi);
+    
+    pti.x = -cam.f * (R11*(pt.x-img.x) + R12*(pt.y-img.y) + R13*(pt.z-img.z)) / (R31*(pt.x-img.x) + R32*(pt.y-img.y) + R33*(pt.z-img.z)) + cam.cx;
+    pti.y = -cam.f * (R21*(pt.x-img.x) + R22*(pt.y-img.y) + R23*(pt.z-img.z)) / (R31*(pt.x-img.x) + R32*(pt.y-img.y) + R33*(pt.z-img.z)) + cam.cy;
+    pti.img_id = img.id;
+    
+    if (cam.cam_type == CAM_TYPE_DISTORTED)
+    {   
+        double x_hat = (pti.x - cam.cx) * 1e+3;
+        double y_hat = (pti.y - cam.cy) * 1e+3;
+        double r = sqrt(pow(x_hat, 2) + pow(y_hat, 2));
+        double dx = x_hat * (cam.k1 * pow(r, 2) + cam.k2 * pow(r, 4) + cam.k3 * pow(r, 6)) + cam.p1*(pow(r,2) + 2*pow(x_hat,2)) + 2*cam.p2*x_hat*y_hat;
+        double dy = y_hat * (cam.k1 * pow(r, 2) + cam.k2 * pow(r, 4) + cam.k3 * pow(r, 6)) + 2*cam.p1*x_hat*y_hat + cam.p2*(pow(r,2) + 2*pow(y_hat,2));
+        
+        pti.x -= dx;
+        pti.y -= dy;
+    }
+    
+    return 0;
+}
+
+int init_problem(problem &prob)
+{
+    prob.n_unknown_cams = 0;
+    for (size_t i = 0; i < prob.cams.size(); i++)
+    {
+        if (prob.cams[i].type == UNKNOWN) prob.n_unknown_cams++;
+    }   
+    
+    prob.n_unknown_obj_pts = 0;
+    for (size_t i = 0; i < prob.obj_pts.size(); i++)
+    {
+        if (prob.obj_pts[i].type == UNKNOWN) prob.n_unknown_obj_pts++;
+    }   
+
+    prob.n_unknown_img_pts = 0;
+    for (size_t i = 0; i < prob.img_pts.size(); i++)
+    {
+        if (prob.img_pts[i].type == UNKNOWN) prob.n_unknown_img_pts++;
+    }   
+    
+    prob.n_unknown_imgs = 0;
+    for (size_t i = 0; i < prob.imgs.size(); i++)
+    {
+        if (prob.imgs[i].type == UNKNOWN) prob.n_unknown_imgs++;
+    } 
+    
+    prob.n_imgs = prob.imgs.size();
+    prob.no_of_img_var = 6;
+    prob.idx_imgs = 0;
+
+    prob.n_cams = prob.cams.size();    
+    
+    // TODO: make it flexible
+    if (prob.n_cams > 0)
+    {
+        if (prob.cams[0].cam_type == CAM_TYPE_DISTORTED)
+        {
+            prob.no_of_cam_var = 8;
+        }
+        else
+        {
+            prob.no_of_cam_var = 3;
+        }
+    }
+    
+    prob.idx_cams = prob.idx_imgs +  prob.n_imgs*prob.no_of_img_var;
+
+    prob.sum_unknowns = prob.no_of_img_var*prob.n_imgs + prob.n_cams*prob.no_of_cam_var;
+    prob.sum_obs = prob.img_pts.size()*2;
+            
+    return 0;
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /*
  *****************************************************
@@ -353,105 +467,4 @@ MatrixXd multiray_triangulate_jacobian(VectorXd x, void* params)
     //print(J);
 	return J;
 }
-
-/*
- *****************************************************
- * Backprojection
- *****************************************************
- */
-
-
-int backproject(const object_pt &obj_pt, const img &img, const camera &cam, img_pt &pti)
-{
-    point3d pt3d;
-    pt3d.x = obj_pt.x;
-    pt3d.y = obj_pt.y;
-    pt3d.z = obj_pt.z;    
-    return backproject(pt3d, img, cam, pti);
-}
-
-int backproject(const point3d &pt, const img &img, const camera &cam, img_pt &pti)
-{
-    double R11 = cos(img.phi)*cos(img.kappa);
-    double R12 = -cos(img.phi)*sin(img.kappa);
-    double R13 = sin(img.phi);
-    double R21 = cos(img.omega)*sin(img.kappa)+sin(img.omega)*sin(img.phi)*cos(img.kappa);
-    double R22 = cos(img.omega)*cos(img.kappa)-sin(img.omega)*sin(img.phi)*sin(img.kappa);
-    double R23 = -sin(img.omega)*cos(img.phi);
-    double R31 = sin(img.omega)*sin(img.kappa)-cos(img.omega)*sin(img.phi)*cos(img.kappa);
-    double R32 = sin(img.omega)*cos(img.kappa)+cos(img.omega)*sin(img.phi)*sin(img.kappa);
-    double R33 = cos(img.omega)*cos(img.phi);
-    
-    pti.x = -cam.f * (R11*(pt.x-img.x) + R12*(pt.y-img.y) + R13*(pt.z-img.z)) / (R31*(pt.x-img.x) + R32*(pt.y-img.y) + R33*(pt.z-img.z)) + cam.cx;
-    pti.y = -cam.f * (R21*(pt.x-img.x) + R22*(pt.y-img.y) + R23*(pt.z-img.z)) / (R31*(pt.x-img.x) + R32*(pt.y-img.y) + R33*(pt.z-img.z)) + cam.cy;
-    pti.img_id = img.id;
-    
-    if (cam.cam_type == CAM_TYPE_DISTORTED)
-    {   
-        double x_hat = (pti.x - cam.cx) * 1e+3;
-        double y_hat = (pti.y - cam.cy) * 1e+3;
-        double r = sqrt(pow(x_hat, 2) + pow(y_hat, 2));
-        double dx = x_hat * (cam.k1 * pow(r, 2) - cam.k2 * pow(r, 4) - cam.k3 * pow(r, 6)) - cam.p1*(pow(r,2) - 2*pow(x_hat,2)) - 2*cam.p2*x_hat*y_hat;
-        double dy = y_hat * (cam.k1 * pow(r, 2) - cam.k2 * pow(r, 4) - cam.k3 * pow(r, 6)) - 2*cam.p1*x_hat*y_hat - cam.p2*(pow(r,2) - 2*pow(y_hat,2));
-        
-        pti.x += dx;
-        pti.y += dy;
-    }
-    
-    return 0;
-}
-
-int init_problem(problem &prob)
-{
-    prob.n_unknown_cams = 0;
-    for (size_t i = 0; i < prob.cams.size(); i++)
-    {
-        if (prob.cams[i].type == UNKNOWN) prob.n_unknown_cams++;
-    }   
-    
-    prob.n_unknown_obj_pts = 0;
-    for (size_t i = 0; i < prob.obj_pts.size(); i++)
-    {
-        if (prob.obj_pts[i].type == UNKNOWN) prob.n_unknown_obj_pts++;
-    }   
-
-    prob.n_unknown_img_pts = 0;
-    for (size_t i = 0; i < prob.img_pts.size(); i++)
-    {
-        if (prob.img_pts[i].type == UNKNOWN) prob.n_unknown_img_pts++;
-    }   
-    
-    prob.n_unknown_imgs = 0;
-    for (size_t i = 0; i < prob.imgs.size(); i++)
-    {
-        if (prob.imgs[i].type == UNKNOWN) prob.n_unknown_imgs++;
-    } 
-    
-    prob.n_imgs = prob.imgs.size();
-    prob.no_of_img_var = 6;
-    prob.idx_imgs = 0;
-
-    prob.n_cams = prob.cams.size();    
-    
-    // TODO: make it flexible
-    if (prob.n_cams > 0)
-    {
-        if (prob.cams[0].cam_type == CAM_TYPE_DISTORTED)
-        {
-            prob.no_of_cam_var = 8;
-        }
-        else
-        {
-            prob.no_of_cam_var = 3;
-        }
-    }
-    
-    prob.idx_cams = prob.idx_imgs +  prob.n_imgs*prob.no_of_img_var;
-
-    prob.sum_unknowns = prob.no_of_img_var*prob.n_imgs + prob.n_cams*prob.no_of_cam_var;
-    prob.sum_obs = prob.img_pts.size()*2;
-            
-    return 0;
-};
-
 
