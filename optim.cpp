@@ -30,7 +30,7 @@ bool any_greater_than(VectorXd v1, VectorXd v2)
 
 VectorXd levenberg_marquardt(VectorXd (*fn)(VectorXd, void*), MatrixXd (*jacobian)(VectorXd, void*), void* params, VectorXd x, const double TolX, const double TolY, optimizer_result &result)
 {
-	const unsigned int MaximumIterationNumber = 500;
+	const unsigned int MaximumIterationNumber = 1500;
 
 	// Residual at starting point
     VectorXd r = fn(x, params);

@@ -1,10 +1,14 @@
 
-function show_radial_distortion_profile(prob, is_plot)
+function show_radial_distortion_profile(prob, is_plot, tag)
 
     pixel_size = 3.92*10^6;
     
-    if nargin == 1
+    if nargin < 2
         is_plot = 1;
+    end
+    
+    if nargin < 3
+        tag = '';
     end
     
     for i = 1 : size(prob.cams, 1)
@@ -21,8 +25,8 @@ function show_radial_distortion_profile(prob, is_plot)
         p1 = params(4);
         p2 = params(5);
         
-        fprintf('Cam #%i  f  = %.3f mm  cx = %.3f mm cy = %.3f mm\n', i, prob.cams(i, 3)*1000, prob.cams(i, 4)*1000, prob.cams(i, 5)*1000) ;
-        fprintf('Cam #%i  k1 = %.3e     k2 = %.3e    k3 = %.3e   p1 = %.3e  p2 = %.3e\n', i, k1, k2, k3, p1, p2) ;
+        fprintf('Cam #%i (%s) f  = %.3f mm  cx = %.3f mm cy = %.3f mm\n', i, tag, prob.cams(i, 3)*1000, prob.cams(i, 4)*1000, prob.cams(i, 5)*1000) ;
+        fprintf('Cam #%i (%s) k1 = %.3e     k2 = %.3e    k3 = %.3e   p1 = %.3e  p2 = %.3e\n', i, tag, k1, k2, k3, p1, p2) ;
         
         if is_plot == 1
             r = (0 : 0.1 : 14) ; %say that's mm
