@@ -1,11 +1,7 @@
 %clear all;
-chdir('C:\OSU3\Repo\bundle-adjustment');
-eigen_inc = ['-I' 'C:\OSU3\Repo\bundle-adjustment\Eigen'];
-%eigen_inc = ['-I' 'C:\OSU2017\bundle-adjustment\Eigen'];
 
-
-mex(eigen_inc, 'ba_algo.cpp', 'optim.cpp', 'matlab.cpp', 'core.cpp');
-mex(eigen_inc, 'backproject.cpp', 'optim.cpp', 'matlab.cpp', 'core.cpp');
-%mex(eigen_inc, 'multiray_triangulate.cpp', 'optim.cpp', 'matlab.cpp', 'core.cpp');
+mex COMPFLAGS="$COMPFLAGS /O2" -IC:\OSU3\Repo\bundle-adjustment\Eigen 'ba_algo.cpp' 'core.cpp' 'optim.cpp' 'matlab.cpp' 
+mex COMPFLAGS="$COMPFLAGS /O2" -IC:\OSU3\Repo\bundle-adjustment\Eigen 'backproject.cpp' 'core.cpp' 'optim.cpp' 'matlab.cpp' 
+%mex COMPFLAGS="$COMPFLAGS" -IC:\OSU3\Repo\bundle-adjustment\Eigen 'core.cpp' 'optim.cpp' 'matlab.cpp' 'multiray_triangulate.cpp'
 
 

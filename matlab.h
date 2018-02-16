@@ -34,6 +34,6 @@ void eigen2mat(double d, mxArray* &ret);
 void create_stoch_struct(const optimizer_result &optimizer_result, const stochastic_params &stoch, mxArray* &ret);
 void create_problem_struct(const problem &prob, mxArray* &ret);
 
-void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &prob, int mode = 1 );
+int extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &prob, int mode = 1 );
 
 #endif

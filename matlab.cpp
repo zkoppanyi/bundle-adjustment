@@ -46,8 +46,8 @@ void eigen2mat(double d, mxArray* &ret)
 
 //
 // MODE = 1 : read all;
-// MODE = 2 : read for backrpojection;
-void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &prob, int mode)
+// MODE = 2 : read for backprojection
+int extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &prob, int mode)
 {
     int pts_arr_idx = 0;
     int img_arr_idx = 1;
@@ -74,7 +74,7 @@ void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pr
         LOG2I("Number of required arguments: ", param_req);
         LOG_ERROR("Not enough input parameters!");
         //LOG_ERROR("Not enough input arguments! At least 4 required!\n Parameters: img_pts, imgs, point3ds, cams\n");
-        return;
+        return -1;
     }
     
     // Load 2d image points
@@ -90,7 +90,7 @@ void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pr
         if (pts_m < 6)
         {
             LOG_ERROR("First argument has to be a matrix of 2D image points: [nx6] (one row: ID, x, y, cam_id, obj_pts_id, type) \n");
-            return;
+            return -1;
         }
     }
    
@@ -109,7 +109,7 @@ void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pr
         if (img_m < 9)
         {
             LOG_ERROR("Second argument has to be the images with at least 1+6+2 columns (one row: ID, X0, Y0, Z0, Omega, Phi, Kappa, cam_id, type)\n");
-            return;
+            return -1;
         }
     }
 
@@ -126,7 +126,7 @@ void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pr
         if (obj_pts_m < 4)
         {
             LOG_ERROR("Third argument has to be the 3d points with at least 5 columns (one row: ID, X, Y, Z, type)\n");
-            return;
+            return -1;
         }
     }
     
@@ -143,17 +143,18 @@ void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pr
         if (camera_m < 6)
         {
             LOG_ERROR("Fourth argument has to be the camera's matrix with at least 5 columns (one row: ID, cam_type, f, cx, cy, [k1, k2, k3, p1, p2] type)\n");
-            return;
+            return -1;
         }
     }
     
     // create problem   
     
     // read up cameras
+    int ctid = 0;
     for (size_t i = 0; i < camera_n; i++)
     {
         camera cam;
-        cam.id        = (int)GET(camera_arr, i, 0, camera_n) - 1;
+        cam.id        = (int)GET(camera_arr, i, 0, camera_n);
         cam.cam_type  = (int)GET(camera_arr, i, 1, camera_n);
         cam.f         =      GET(camera_arr, i, 2, camera_n);
         cam.cx        =      GET(camera_arr, i, 3, camera_n);
@@ -165,7 +166,7 @@ void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pr
             if (camera_m < 11)
             {
                 LOG_ERROR("cam_type indicates using distortion models but they are not defined in cams!"); 
-                return;
+                return -1;
             }
         }
         
@@ -190,25 +191,20 @@ void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pr
                 LOG2I("Invalid record type at ", (int)i+1); 
                 LOG2I("Input record type: ", type_id); 
                 LOG_ERROR("Invalid record type in cams!"); 
-                return;
-                break;
+                return -1;
         }
-        
-        if ((cam.id < 0) || cam.id >= camera_n)
-        {
-            mexPrintf("Invalid ID: %i at (%i, %i) in cams\n", cam.id, (int)i+1, 5); 
-            LOG_ERROR("Invalid camera ID in cams!"); 
-            return;
-        }
-        
+                
+        cam.tid = ctid;
         prob.cams.push_back(cam);
+        ctid++;
     }
     
     // read up object space points    
+    int otid = 0;
     for (size_t i = 0; i < obj_pts_n; i++)
     {       
         object_pt pt3d;
-        pt3d.id      = (int)GET(obj_pts_arr, i, 0, obj_pts_n) - 1;
+        pt3d.id      = (int)GET(obj_pts_arr, i, 0, obj_pts_n);
         pt3d.x       = GET(obj_pts_arr, i, 1, obj_pts_n);
         pt3d.y       = GET(obj_pts_arr, i, 2, obj_pts_n);
         pt3d.z       = GET(obj_pts_arr, i, 3, obj_pts_n);
@@ -222,32 +218,45 @@ void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pr
                 LOG2I("Invalid record type at ", (int)i+1); 
                 LOG2I("Input record type: ", type_id); 
                 LOG_ERROR("Invalid record type in obj_pts!"); 
-                return;
-                break; 
+                return -1;
         }
-         
-        if ((pt3d.id < 0) || pt3d.id >= obj_pts_n)
-        {
-            mexPrintf("Invalid id: %i at (%i, %i) in pt3ds\n", pt3d.id, i+1, 4);
-            LOG_ERROR("Invalid object point ID in pt3ds!"); 
-            return;
-        }
-        
+                         
+        pt3d.tid = otid;
         prob.obj_pts.push_back(pt3d);
+        otid++;
     }
     
-    // read up images    
+    // read up images 
+    int itid = 0;
     for (size_t i = 0; i < img_n; i++)
     {       
         img img;
-        img.id         = (int)GET(img_arr, i, 0, img_n) - 1;
+        img.id         = (int)GET(img_arr, i, 0, img_n);
         img.x          =      GET(img_arr, i, 1, img_n);
         img.y          =      GET(img_arr, i, 2, img_n);
         img.z          =      GET(img_arr, i, 3, img_n);
         img.omega      =      GET(img_arr, i, 4, img_n);
         img.phi        =      GET(img_arr, i, 5, img_n);
         img.kappa      =      GET(img_arr, i, 6, img_n);
-        img.cam_id     = (int)GET(img_arr, i, 7, img_n) - 1;
+        
+         // finding camera id
+        int cam_id     = (int)GET(img_arr, i, 7, img_n);
+        
+        camera* fcam = NULL;
+        for(std::vector<camera>::size_type k = 0; k != prob.cams.size(); k++) 
+        {
+             if (prob.cams[k].id == cam_id) fcam = &prob.cams[k];
+        }        
+        img.cam_ptr = fcam;
+        
+        if (img.cam_ptr == NULL)
+        {
+            mexPrintf("Invalid cam_id: %i at (%i, %i) in imgs\n", cam_id, i+1, 4);
+            LOG_ERROR("Invalid camera ID in imgs!"); 
+            return -1;
+        }
+        
+         // finding type
         int type_id    = (int)GET(img_arr, i, 8, img_n);
         
         switch(type_id)
@@ -258,36 +267,66 @@ void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pr
                 LOG2I("Invalid record type at ", (int)i+1); 
                 LOG2I("Input record type: ", type_id); 
                 LOG_ERROR("Invalid record type in imgs!"); 
-                return;
-                break;        
-        }
+                return -1;
+        }              
         
-        if ((img.id < 0) || img.id >= img_n)
-        {
-            mexPrintf("Invalid id: %i at (%i, %i) in imgs\n", img.id, i+1, 4);
-            LOG_ERROR("Invalid object point ID in imgs!"); 
-            return;
-        }
-        
-        if ((img.cam_id < 0) || img.cam_id >= camera_n)
-        {
-            mexPrintf("Invalid cam_id: %i at (%i, %i) in imgs\n", img.id, i+1, 4);
-            LOG_ERROR("Invalid camera ID in imgs!"); 
-            return;
-        }
-        
+        img.tid = itid;
         prob.imgs.push_back(img);
+        itid++;
     }
-    
+
     // read up image points    
+    int ptid = 0;
     for (size_t i = 0; i < pts_n; i++)
     {       
         img_pt pti;
-        pti.id         = (int)GET(pts_arr, i, 0, pts_n) - 1;
+        pti.id         = (int)GET(pts_arr, i, 0, pts_n);
         pti.x          =      GET(pts_arr, i, 1, pts_n);
         pti.y          =      GET(pts_arr, i, 2, pts_n);
-        pti.img_id     = (int)GET(pts_arr, i, 3, pts_n) - 1;
-        pti.obj_pts_id = (int)GET(pts_arr, i, 4, pts_n) - 1;
+        
+        // finding image id
+        int img_id     = (int)GET(pts_arr, i, 3, pts_n);
+        
+        img* fimg = NULL;
+        for(std::vector<img>::size_type k = 0; k != prob.imgs.size(); k++) 
+        {
+             if (prob.imgs[k].id == img_id) 
+             {
+                 fimg = &(prob.imgs[k]);
+                 break;
+             }
+        }        
+        pti.img_ptr = fimg;
+        
+        if (pti.img_ptr == NULL)
+        {
+            mexPrintf("Invalid img_id=%i at (%i, %i) in img_pts!\n", img_id, i+1, 4);
+            LOG_ERROR("Invalid image ID in img_pts!"); 
+            return -1;
+        }
+        
+        // finding object point id
+        int obj_pts_id = (int)GET(pts_arr, i, 4, pts_n);
+        
+        object_pt* fobj_pt_ptr = NULL;
+        for(std::vector<object_pt>::size_type k = 0; k != prob.obj_pts.size(); k++) 
+        {
+             if (prob.obj_pts[k].id == obj_pts_id) 
+             {
+                 fobj_pt_ptr = &prob.obj_pts[k];
+                 break;
+             }
+        }        
+        pti.obj_pts_ptr = fobj_pt_ptr;
+        
+        if (pti.obj_pts_ptr == NULL)
+        {
+            mexPrintf("Invalid obj_pts_id: %i at (%i, %i) in img_pts\n", obj_pts_id, i+1, 5);
+            LOG_ERROR("Invalid object point ID in img_pts!"); 
+            return -1;
+        }
+        
+        // finding type
         int type_id    = (int)GET(pts_arr, i, 5, pts_n);
         
         switch(type_id)
@@ -298,26 +337,15 @@ void extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pr
                 LOG2I("Invalid record type at ", (int)i+1); 
                 LOG2I("Input record type: ", type_id); 
                 LOG_ERROR("Invalid record type in img_pts!"); 
-                return;
-                break;        
+                return -1;
         }
         
-        if ((pti.img_id < 0) || pti.img_id >= img_n)
-        {
-            mexPrintf("Invalid img_id: %i at (%i, %i) in img_id\n", pti.id, i+1, 4);
-            LOG_ERROR("Invalid camera ID in img_pts!"); 
-            return;
-        }
-
-        if ((pti.obj_pts_id < 0) || pti.obj_pts_id >= obj_pts_n)
-        {
-            mexPrintf("Invalid obj_pts_id: %i at (%i, %i) in img_pts\n", pti.obj_pts_id, i+1, 5);
-            LOG_ERROR("Invalid object point ID in img_pts!"); 
-            return;
-        }
-
+        pti.tid = ptid;
         prob.img_pts.push_back(pti);
+        ptid++;
     }
+    
+    return 0;
 }
 
 void create_stoch_struct(const optimizer_result &optimizer_result, const stochastic_params &stoch, mxArray* &ret)
@@ -353,16 +381,16 @@ void create_problem_struct(const problem &prob, mxArray* &ret)
         {
             img img = prob.imgs[i];
 
-            GET(img_ptr, i, 0, n_ret) = img.id + 1;
+            GET(img_ptr, i, 0, n_ret) = img.id;
             GET(img_ptr, i, 1, n_ret) = img.x;
             GET(img_ptr, i, 2, n_ret) = img.y;
             GET(img_ptr, i, 3, n_ret) = img.z;
             GET(img_ptr, i, 4, n_ret) = img.omega;
             GET(img_ptr, i, 5, n_ret) = img.phi;
             GET(img_ptr, i, 6, n_ret) = img.kappa;
-            GET(img_ptr, i, 7, n_ret) = img.cam_id + 1;
+            GET(img_ptr, i, 7, n_ret) = img.cam_ptr->id;
             GET(img_ptr, i, 8, n_ret) = static_cast<int>(img.type);
-                    }   
+        }   
       
         n_ret = prob.cams.size();
         
@@ -385,7 +413,7 @@ void create_problem_struct(const problem &prob, mxArray* &ret)
         for (size_t i = 0; i < n_ret ; i++)
         {
             camera cam = prob.cams[i];
-            GET(cams_ptr, i, 0, n_ret) = cam.id + 1;
+            GET(cams_ptr, i, 0, n_ret) = cam.id;
             GET(cams_ptr, i, 1, n_ret) = cam.type;
             GET(cams_ptr, i, 2, n_ret) = cam.f;
             GET(cams_ptr, i, 3, n_ret) = cam.cx;
@@ -412,11 +440,11 @@ void create_problem_struct(const problem &prob, mxArray* &ret)
         for (size_t i = 0; i < n_ret ; i++)
         {
             img_pt pt = prob.img_pts[i];
-            GET(img_pts_ptr, i, 0, n_ret) = pt.id + 1;
+            GET(img_pts_ptr, i, 0, n_ret) = pt.id;
             GET(img_pts_ptr, i, 1, n_ret) = pt.x;
             GET(img_pts_ptr, i, 2, n_ret) = pt.y;
-            GET(img_pts_ptr, i, 3, n_ret) = pt.img_id + 1;
-            GET(img_pts_ptr, i, 4, n_ret) = pt.obj_pts_id + 1;
+            GET(img_pts_ptr, i, 3, n_ret) = pt.img_ptr->id;
+            GET(img_pts_ptr, i, 4, n_ret) = pt.obj_pts_ptr->id;
             GET(img_pts_ptr, i, 5, n_ret) = static_cast<int>(pt.type);
         }   
 
@@ -427,7 +455,7 @@ void create_problem_struct(const problem &prob, mxArray* &ret)
         {
             object_pt pt = prob.obj_pts[i];
 
-            GET(obj_pts_ptr, i, 0, n_ret) = pt.id + 1;
+            GET(obj_pts_ptr, i, 0, n_ret) = pt.id;
             GET(obj_pts_ptr, i, 1, n_ret) = pt.x;
             GET(obj_pts_ptr, i, 2, n_ret) = pt.y;
             GET(obj_pts_ptr, i, 3, n_ret) = pt.z;

@@ -27,6 +27,8 @@ struct point3d
 struct object_pt
 {
     int id;
+    int tid; 
+    
     double x;
     double y;
     double z;
@@ -43,6 +45,8 @@ struct orient3d
 struct camera
 {
     int id; 
+    int tid; 
+    
     int cam_type;
     
     double f;
@@ -64,6 +68,7 @@ struct camera
 struct img
 {
     int id; 
+    int tid;     
     
     double x;
     double y;
@@ -73,19 +78,21 @@ struct img
     double phi;
     double kappa;
 
-    int cam_id;
+    camera* cam_ptr;
+    
     var_type type;
 };
 
 struct img_pt
 {
     int id;
+    int tid; 
     
     double x;
     double y;
-    
-    int img_id;
-    int obj_pts_id;
+        
+    img* img_ptr;
+    object_pt* obj_pts_ptr;
     
     var_type type;
     

@@ -9,6 +9,7 @@
 #include "core.h"
 #include "matlab.h"
 
+#include "time.h"
 
 using namespace std;
 using Eigen::MatrixXd;
@@ -21,7 +22,8 @@ void mexFunction(int nlhs, mxArray *plhs[],
     
     // Load problem
     problem prob;    
-    extract_problem_from_arguments(nrhs, prhs, prob);
+    if (extract_problem_from_arguments(nrhs, prhs, prob) != 0) return;
+        
     
     if (nlhs < 1)
     {
@@ -30,6 +32,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
     }
     
     init_problem(prob);    
+    
     LOG2I(" Unknown image points: ", prob.n_unknown_img_pts);
     LOG2I("       Unknown images: ", prob.n_unknown_imgs);
     LOG2I("Unknown object points: ", prob.n_unknown_obj_pts);
@@ -44,10 +47,11 @@ void mexFunction(int nlhs, mxArray *plhs[],
     LOG2I("  no_of_cam_var: ", prob.no_of_cam_var);
     LOG2I("       idx_cams: ", prob.idx_cams);
 
-    
-    problem sol;
+    clock_t t = clock();
     problem_result result;
-    bundle_adjustment(prob, sol, result);
+    bundle_adjustment(prob, result);
+    
+    LOG2F("Runnning time [s]: ", (float)(clock() - t)/CLOCKS_PER_SEC);
        
     if (result.optimizer_result.stopping_criteria == THRESHOLD_REACHED)
     {
@@ -71,7 +75,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
     LOG2F("L2 norm of residuals per no. of unknowns: ", result.residual / result.optimizer_result.r.size());
     
     // populate returns
-    create_problem_struct(sol, plhs[0]);
+    create_problem_struct(prob, plhs[0]);
     
     if (nlhs > 1)
     {

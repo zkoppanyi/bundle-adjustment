@@ -10,17 +10,18 @@ function plot_problem(plot_k, img_pts, imgs, obj_pts, cams, color_in)
         color = color_in;
     end
     
-    cam_scale = 1;
-    %cam_scale = 20;
+    
+    %cam_scale = 1;
+    cam_scale = 20;
     
     % plot cameras
     Rcams = {};
     for i = 1 : size(imgs, 1)
         
-        cam_id = imgs(i, 8);
-        f  = cams(cam_id,3);
-        cx = cams(cam_id,4);
-        cy = cams(cam_id,5);
+        cam_idx = find(cams(:,1) == imgs(i, 8));
+        f  = cams(cam_idx,3);
+        cx = cams(cam_idx,4);
+        cy = cams(cam_idx,5);
 
         cam_x  = imgs(i, 2);
         cam_y  = imgs(i, 3);
@@ -49,20 +50,20 @@ function plot_problem(plot_k, img_pts, imgs, obj_pts, cams, color_in)
     
     for i = 1 : size(img_pts, 1)
 
-        img_id = img_pts(i, 4);
-        cam_id = imgs(img_id, 8);
-        obj_pt_id = img_pts(i, 5);     
+        img_idx = find(imgs(:,1) == img_pts(i, 4));
+        cam_idx = find(cams(:,1) == imgs(img_idx, 8));
+        obj_pt_idx = find(obj_pts(:,1) == img_pts(i, 5));     
         
-        f  = cams(cam_id,3);
-        cx = cams(cam_id,4);
-        cy = cams(cam_id,5);
-        cam_x  = imgs(img_id, 2);
-        cam_y  = imgs(img_id, 3);
-        cam_z  = imgs(img_id, 4);
-        R = Rcams{img_id};
+        f  = cams(cam_idx,3);
+        cx = cams(cam_idx,4);
+        cy = cams(cam_idx,5);
+        cam_x  = imgs(img_idx, 2);
+        cam_y  = imgs(img_idx, 3);
+        cam_z  = imgs(img_idx, 4);
+        R = Rcams{img_idx};
  
-        plot3(obj_pts(obj_pt_id,2), obj_pts(obj_pt_id,3), obj_pts(obj_pt_id,4), 'b.', 'MarkerSize', 20);
-        plot3([cam_x obj_pts(obj_pt_id,2)], [cam_y obj_pts(obj_pt_id,3)], [cam_z obj_pts(obj_pt_id,4)], 'b-');
+        plot3(obj_pts(obj_pt_idx,2), obj_pts(obj_pt_idx,3), obj_pts(obj_pt_idx,4), 'b.', 'MarkerSize', 20);
+        plot3([cam_x obj_pts(obj_pt_idx,2)], [cam_y obj_pts(obj_pt_idx,3)], [cam_z obj_pts(obj_pt_idx,4)], 'b-');
 
         pti2 = [img_pts(i,2)-cx, img_pts(i,3)-cy, -f] * R;
         plot3(cam_x + pti2(1) * cam_scale, cam_y + pti2(2) * cam_scale, cam_z + pti2(3) * cam_scale, 'r.','MarkerSize', 12);

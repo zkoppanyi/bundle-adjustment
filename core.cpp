@@ -65,25 +65,21 @@ void calc_stochastic(const optimizer_result &result, stochastic_params &params)
 VectorXd bundle_adjustment_fn(VectorXd x, void* params);
 MatrixXd bundle_adjustment_jacobian(VectorXd x, void* params);
 
-int bundle_adjustment(const problem &prob, problem &sol, problem_result &result)
+int bundle_adjustment(problem &prob, problem_result &result)
 {
     const double TolX = 1e-6;
 	const double TolY = 1e-8;
     
-    sol = prob;
-    init_problem(sol);
-    
     // initial guess
-    VectorXd x0 = VectorXd::Zero(sol.sum_unknowns);
-    for (size_t i = 0; i < sol.n_imgs; i++)
+    VectorXd x0 = VectorXd::Zero(prob.sum_unknowns);
+    for (size_t i = 0; i < prob.n_imgs; i++)
     {
-        img img = sol.imgs[i];
-        size_t img_id = img.id;
+        img img = prob.imgs[i];
+        size_t img_id = img.tid;
     
-        int cam_id = img.cam_id;
-        camera cam = sol.cams[cam_id]; 
+        camera cam = *(img.cam_ptr); 
         
-        size_t idx_img = sol.idx_imgs + sol.no_of_img_var*img_id;
+        size_t idx_img = prob.idx_imgs + prob.no_of_img_var*img_id;
         x0(idx_img + 0) = img.x;
         x0(idx_img + 1) = img.y;
         x0(idx_img + 2) = img.z;
@@ -91,7 +87,7 @@ int bundle_adjustment(const problem &prob, problem &sol, problem_result &result)
         x0(idx_img + 4) = img.phi;
         x0(idx_img + 5) = img.kappa;
         
-        size_t idx_cam = sol.idx_cams + sol.no_of_cam_var*cam_id;
+        size_t idx_cam = prob.idx_cams + prob.no_of_cam_var*cam.tid;
         x0(idx_cam + 0) = cam.f;
         x0(idx_cam + 1) = cam.cx;
         x0(idx_cam + 2) = cam.cy;
@@ -107,19 +103,16 @@ int bundle_adjustment(const problem &prob, problem &sol, problem_result &result)
     }    
     
     optimizer_result opt_result;
-    VectorXd sol_vec = levenberg_marquardt(bundle_adjustment_fn, bundle_adjustment_jacobian, (void*)&sol, x0, TolX, TolY, opt_result);
-    //VectorXd sol_vec = simulated_annealing(bundle_adjustment_fn, bundle_adjustment_jacobian, (void*)&sol, x0, TolX, TolY, opt_result);
+    VectorXd sol_vec = levenberg_marquardt(bundle_adjustment_fn, bundle_adjustment_jacobian, (void*)&prob, x0, TolX, TolY, opt_result);
+    //VectorXd sol_vec = simulated_annealing(bundle_adjustment_fn, bundle_adjustment_jacobian, (void*)&prob, x0, TolX, TolY, opt_result);
     result.optimizer_result = opt_result;
     
-    for (size_t i = 0; i < sol.n_imgs; i++) 
+    for (size_t i = 0; i < prob.n_imgs; i++) 
     {
-        img &img = sol.imgs[i];
-        size_t img_id = img.id;
-
-        int cam_id = img.cam_id;
-        camera& cam = sol.cams[cam_id]; 
+        img &img = prob.imgs[i];
+        camera* cam = prob.imgs[i].cam_ptr;
         
-        size_t idx_img = sol.idx_imgs + sol.no_of_img_var*img_id;
+        size_t idx_img = prob.idx_imgs + prob.no_of_img_var*img.tid;
         img.x     = sol_vec(idx_img  + 0);
         img.y     = sol_vec(idx_img  + 1);
         img.z     = sol_vec(idx_img  + 2);
@@ -127,18 +120,18 @@ int bundle_adjustment(const problem &prob, problem &sol, problem_result &result)
         img.phi   = sol_vec(idx_img  + 4);
         img.kappa = sol_vec(idx_img  + 5);
                     
-        size_t idx_cam = sol.idx_cams + sol.no_of_cam_var*cam_id;
-        cam.f     = sol_vec(idx_cam + 0);
-        cam.cx    = sol_vec(idx_cam + 1);
-        cam.cy    = sol_vec(idx_cam + 2);      
+        size_t idx_cam = prob.idx_cams + prob.no_of_cam_var*cam->tid;
+        cam->f     = sol_vec(idx_cam + 0);
+        cam->cx    = sol_vec(idx_cam + 1);
+        cam->cy    = sol_vec(idx_cam + 2);      
         
-        if (cam.cam_type == CAM_TYPE_DISTORTED)
+        if (cam->cam_type == CAM_TYPE_DISTORTED)
         {
-            cam.k1 = sol_vec(idx_cam + 3);
-            cam.k2 = sol_vec(idx_cam + 4);
-            cam.k3 = sol_vec(idx_cam + 5);
-            cam.p1 = sol_vec(idx_cam + 6);
-            cam.p2 = sol_vec(idx_cam + 7);
+            cam->k1 = sol_vec(idx_cam + 3);
+            cam->k2 = sol_vec(idx_cam + 4);
+            cam->k3 = sol_vec(idx_cam + 5);
+            cam->p1 = sol_vec(idx_cam + 6);
+            cam->p2 = sol_vec(idx_cam + 7);
         }
 
    }          
@@ -157,13 +150,10 @@ VectorXd bundle_adjustment_fn(VectorXd x, void* params)
     
     for (size_t i = 0; i < prob->img_pts.size(); i++)
     {
-        int img_id = prob->img_pts[i].img_id;
-        img img = prob->imgs[img_id];
+        img img = *(prob->img_pts[i].img_ptr);
+        camera cam = *(img.cam_ptr);        
         
-        int cam_id = img.cam_id;
-        camera cam = prob->cams[cam_id];        
-        
-        size_t idx_img = prob->idx_imgs + prob->no_of_img_var*img_id;
+        size_t idx_img = prob->idx_imgs + prob->no_of_img_var*img.tid;
         img.x     = x(idx_img  + 0);
         img.y     = x(idx_img  + 1);
         img.z     = x(idx_img  + 2);
@@ -171,7 +161,7 @@ VectorXd bundle_adjustment_fn(VectorXd x, void* params)
         img.phi   = x(idx_img  + 4);
         img.kappa = x(idx_img  + 5);
         
-        size_t idx_cam = prob->idx_cams + prob->no_of_cam_var*cam_id;
+        size_t idx_cam = prob->idx_cams + prob->no_of_cam_var*cam.tid;
         cam.f     = x(idx_cam + 0);
         cam.cx    = x(idx_cam + 1);
         cam.cy    = x(idx_cam + 2);        
@@ -185,8 +175,7 @@ VectorXd bundle_adjustment_fn(VectorXd x, void* params)
             cam.p2 = x(idx_cam + 7);
         }        
         
-        int obj_pts_id = prob->img_pts[i].obj_pts_id;
-        object_pt obj_pts = prob->obj_pts[obj_pts_id];
+        object_pt obj_pts = *( prob->img_pts[i].obj_pts_ptr );
         
         img_pt pti0;
         backproject(obj_pts, img, cam, pti0);
@@ -209,16 +198,11 @@ MatrixXd bundle_adjustment_jacobian(VectorXd x, void* params)
     
     for (size_t i = 0; i < prob->img_pts.size(); i++)
     {
-        int img_id = prob->img_pts[i].img_id;
-        img img = prob->imgs[img_id];
+        img img = *(prob->img_pts[i].img_ptr);
+        camera cam = *(img.cam_ptr);   
+        object_pt obj_pts = *( prob->img_pts[i].obj_pts_ptr);
         
-        int cam_id = img.cam_id;
-        camera cam = prob->cams[cam_id];  
-        
-        int obj_pts_id = prob->img_pts[i].obj_pts_id;
-        object_pt obj_pts = prob->obj_pts[obj_pts_id];
-        
-        size_t idx_img = prob->idx_imgs + prob->no_of_img_var*img_id;
+        size_t idx_img = prob->idx_imgs + prob->no_of_img_var*img.tid;
         img.x     = x(idx_img  + 0);
         img.y     = x(idx_img  + 1);
         img.z     = x(idx_img  + 2);
@@ -226,7 +210,7 @@ MatrixXd bundle_adjustment_jacobian(VectorXd x, void* params)
         img.phi   = x(idx_img  + 4);
         img.kappa = x(idx_img  + 5);
         
-        size_t idx_cam = prob->idx_cams + prob->no_of_cam_var*cam_id;
+        size_t idx_cam = prob->idx_cams + prob->no_of_cam_var*cam.tid;
         cam.f     = x(idx_cam + 0);
         cam.cx    = x(idx_cam + 1);
         cam.cy    = x(idx_cam + 2);
@@ -266,17 +250,27 @@ MatrixXd bundle_adjustment_jacobian(VectorXd x, void* params)
  *****************************************************
  */
 
+int backproject(object_pt &obj_pt, img &img, img_pt &pti)
+{
+    return backproject(obj_pt, img, *(img.cam_ptr), pti);
+}
 
-int backproject(const object_pt &obj_pt, const img &img, const camera &cam, img_pt &pti)
+int backproject(const point3d &pt, img &img, img_pt &pti)
+{
+    return backproject(pt, img, *(img.cam_ptr), pti);
+}
+
+int backproject(object_pt &obj_pt, img &img, const camera &cam, img_pt &pti)
 {
     point3d pt3d;
     pt3d.x = obj_pt.x;
     pt3d.y = obj_pt.y;
     pt3d.z = obj_pt.z;    
+    pti.obj_pts_ptr = &obj_pt;    
     return backproject(pt3d, img, cam, pti);
 }
 
-int backproject(const point3d &pt, const img &img, const camera &cam, img_pt &pti)
+int backproject(const point3d &pt, img &img, const camera &cam, img_pt &pti)
 {
     double R11 = cos(img.phi)*cos(img.kappa);
     double R12 = -cos(img.phi)*sin(img.kappa);
@@ -290,7 +284,7 @@ int backproject(const point3d &pt, const img &img, const camera &cam, img_pt &pt
     
     pti.x = -cam.f * (R11*(pt.x-img.x) + R12*(pt.y-img.y) + R13*(pt.z-img.z)) / (R31*(pt.x-img.x) + R32*(pt.y-img.y) + R33*(pt.z-img.z)) + cam.cx;
     pti.y = -cam.f * (R21*(pt.x-img.x) + R22*(pt.y-img.y) + R23*(pt.z-img.z)) / (R31*(pt.x-img.x) + R32*(pt.y-img.y) + R33*(pt.z-img.z)) + cam.cy;
-    pti.img_id = img.id;
+    pti.img_ptr = &img;
     
     if (cam.cam_type == CAM_TYPE_DISTORTED)
     {   
@@ -423,14 +417,9 @@ VectorXd multiray_triangulate_fn(VectorXd x, void* params)
     Eigen::VectorXd r(2*prob->img_pts.size());
     for (size_t i = 0; i < prob->img_pts.size(); i++)
     {
-        int img_id = prob->img_pts[i].img_id;
-        img img = prob->imgs[img_id];
-        
-        int cam_id = img.cam_id;
-        camera cam = prob->cams[cam_id];  
-
-        int obj_pts_id = prob->img_pts[i].obj_pts_id;
-        object_pt obj_pts = prob->obj_pts[obj_pts_id];
+        img img = *(prob->img_pts[i].img_ptr);
+        camera cam = *(img.cam_ptr);   
+        object_pt obj_pts = *( prob->img_pts[i].obj_pts_ptr);
         
         point3d pt0;
         pt0.x = x(0);
@@ -455,11 +444,8 @@ MatrixXd multiray_triangulate_jacobian(VectorXd x, void* params)
     Eigen::MatrixXd J(2*prob->img_pts.size(), 3);
     for (size_t i = 0; i < prob->img_pts.size(); i++)
     {
-        int img_id = prob->img_pts[i].img_id;
-        img img = prob->imgs[img_id];
-        
-        int cam_id = img.cam_id;
-        camera cam = prob->cams[cam_id];        
+        img img = *(prob->img_pts[i].img_ptr);
+        camera cam = *(img.cam_ptr);   
         
         photo_jacobian_problem_triang::populate(J, i*2, 0, x, img,  cam);
     }

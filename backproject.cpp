@@ -13,7 +13,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
 {
     // Load problem
     problem prob;    
-    extract_problem_from_arguments(nrhs, prhs, prob);
+    if (extract_problem_from_arguments(nrhs, prhs, prob) != 0) return;
     
     if (nlhs < 1)
     {
@@ -26,9 +26,10 @@ void mexFunction(int nlhs, mxArray *plhs[],
     LOG2I("       Unknown images: ", prob.n_unknown_imgs);
     LOG2I("Unknown object points: ", prob.n_unknown_obj_pts);
     LOG2I("      Unknown cameras: ", prob.n_unknown_cams);*/
-    
+        
     size_t n_obj_pts = prob.obj_pts.size();
     size_t n_imgs = prob.imgs.size();
+
 
     size_t n_ret = n_obj_pts*n_imgs;
     plhs[0] = mxCreateDoubleMatrix(n_ret, 6, mxREAL);
@@ -40,22 +41,18 @@ void mexFunction(int nlhs, mxArray *plhs[],
 
         for (size_t j = 0; j < n_imgs; j++)
         {
-            img img = prob.imgs[j];
-
-            int cam_id = img.cam_id;
-            camera cam = prob.cams[cam_id];
-        
+            img img = prob.imgs[j];      
+            
             img_pt pti;
-            backproject(obj_pt, img, cam, pti);
+            backproject(obj_pt, img, pti);
             pti.id = k;
-            pti.obj_pts_id = i;
             pti.type = KNOWN;
 
-            GET(ret, k, 0, n_ret) = pti.id + 1;
+            GET(ret, k, 0, n_ret) = pti.id;
             GET(ret, k, 1, n_ret) = pti.x;
             GET(ret, k, 2, n_ret) = pti.y;
-            GET(ret, k, 3, n_ret) = pti.img_id + 1;
-            GET(ret, k, 4, n_ret) = pti.obj_pts_id + 1;
+            GET(ret, k, 3, n_ret) = pti.img_ptr->id;
+            GET(ret, k, 4, n_ret) = pti.obj_pts_ptr->id;
             GET(ret, k, 5, n_ret) = static_cast<int>(pti.type);
 
             /*mexPrintf("x=%.3f y=%.3f z=%.3f\n", pt.x, pt.y, pt.z);
@@ -63,5 +60,5 @@ void mexFunction(int nlhs, mxArray *plhs[],
             k++;
         }
     }
-    
+        
 }

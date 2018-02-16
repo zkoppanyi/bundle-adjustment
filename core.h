@@ -8,8 +8,10 @@
 
 int init_problem(problem &prob);
 
-int backproject(const object_pt &obj_pt, const img &img, const camera &cam, img_pt &pti);
-int backproject(const point3d &pt, const img &img, const camera &cam, img_pt &pti);
+int backproject(object_pt &obj_pt, img &img, const camera &cam, img_pt &pti);
+int backproject(const point3d &pt, img &img, const camera &cam, img_pt &pti);
+int backproject(object_pt &obj_pt, img &img, img_pt &pti);
+int backproject(const point3d &pt, img &img, img_pt &pti);
 
 struct problem_result
 {
@@ -26,6 +28,6 @@ struct stochastic_params
 };
 void calc_stochastic(const optimizer_result &result, stochastic_params &params);
 
-int bundle_adjustment(const problem &prob, problem &sol, problem_result &result);
+int bundle_adjustment(problem &prob, problem_result &result);
 
 #endif
