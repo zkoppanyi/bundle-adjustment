@@ -1,6 +1,9 @@
 
 function plot_problem(plot_k, img_pts, imgs, obj_pts, cams, color_in)
 
+    KNOWN = 1;
+    UNKNOWN = 2;
+
     %figure('WindowScrollWheelFcn',@figScroll);
     %clf; 
     hold on;
@@ -62,12 +65,15 @@ function plot_problem(plot_k, img_pts, imgs, obj_pts, cams, color_in)
         cam_z  = imgs(img_idx, 4);
         R = Rcams{img_idx};
  
-        plot3(obj_pts(obj_pt_idx,2), obj_pts(obj_pt_idx,3), obj_pts(obj_pt_idx,4), 'b.', 'MarkerSize', 20);
+        plot3(obj_pts(obj_pt_idx,2), obj_pts(obj_pt_idx,3), obj_pts(obj_pt_idx,4), 'b.', 'MarkerSize', 20);      
         plot3([cam_x obj_pts(obj_pt_idx,2)], [cam_y obj_pts(obj_pt_idx,3)], [cam_z obj_pts(obj_pt_idx,4)], 'b-');
 
         pti2 = [img_pts(i,2)-cx, img_pts(i,3)-cy, -f] * R;
         plot3(cam_x + pti2(1) * cam_scale, cam_y + pti2(2) * cam_scale, cam_z + pti2(3) * cam_scale, 'r.','MarkerSize', 12);
     end
+    
+    cobj_pts = obj_pts(obj_pts(:, end) == KNOWN, :); % control points
+    plot3(cobj_pts(:,2), cobj_pts(:,3), cobj_pts(:,4), 'ro', 'MarkerSize', 10, 'LineWidth', 3);
     
     xlabel('X'); ylabel('Y'); zlabel('Z');
     grid on;

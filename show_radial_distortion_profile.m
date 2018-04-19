@@ -50,8 +50,8 @@ function show_radial_distortion_profile(prob, is_plot, tag)
             x_hat = (ptx - cx);
             y_hat = (pty - cy);
             r = sqrt(x_hat.^2 + y_hat.^2);
-            ptix = ptx - (x_hat .* (k1 * r.^2 + k2 * r.^4 + k3 * r.^6) + p1*(r.^2 + 2*x_hat.^2) + 2*p2*x_hat.*y_hat)*10000;
-            ptiy = pty - (y_hat .* (k1 * r.^2 + k2 * r.^4 + k3 * r.^6) + 2*p1*x_hat.*y_hat + p2*(r.^2 + 2*y_hat.^2))*10000;
+            ptix = ptx - (x_hat .* (k1 * r.^2 + k2 * r.^4 + k3 * r.^6) + p1*(r.^2 + 2*x_hat.^2) + 2*p2*x_hat.*y_hat);
+            ptiy = pty - (y_hat .* (k1 * r.^2 + k2 * r.^4 + k3 * r.^6) + 2*p1*x_hat.*y_hat + p2*(r.^2 + 2*y_hat.^2));
 
             subplot(1,2,2); hold on;
             plot(ptx, pty, 'k.', 'MarkerSize', 7);

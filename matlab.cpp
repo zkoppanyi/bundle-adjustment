@@ -210,7 +210,7 @@ int extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pro
         pt3d.z       = GET(obj_pts_arr, i, 3, obj_pts_n);
         int type_id  = (int)GET(obj_pts_arr, i, 4, obj_pts_n);    
         
-         switch(type_id)
+        switch(type_id)
         {
             case static_cast<int>(KNOWN)   : pt3d.type = KNOWN; break;
             case static_cast<int>(UNKNOWN) : pt3d.type = UNKNOWN; break;
@@ -408,6 +408,7 @@ void create_problem_struct(const problem &prob, mxArray* &ret)
             }
         }
                 
+        // cams
         mxArray* cams_arr = mxCreateDoubleMatrix(n_ret, m_cam, mxREAL);
         double* cams_ptr = mxGetPr(cams_arr);
         for (size_t i = 0; i < n_ret ; i++)
@@ -434,6 +435,7 @@ void create_problem_struct(const problem &prob, mxArray* &ret)
             }
         }   
                 
+        //img_pts
         n_ret = prob.img_pts.size();
         mxArray* img_pts_arr = mxCreateDoubleMatrix(n_ret, 6, mxREAL);
         double* img_pts_ptr = mxGetPr(img_pts_arr);

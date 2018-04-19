@@ -1,10 +1,13 @@
+//#define NDEBUG
+#define EIGEN_NO_DEBUG 
+
 #include <Eigen/IterativeLinearSolvers>
         
 #include "optim.h"
+#include "structs.h"
 #include <cmath>
 #include <iostream>
-//#include <random>
-//#include "matlab.h"
+#include "time.h"
 
 using namespace std;
 using namespace Eigen;
@@ -13,7 +16,7 @@ bool any_greater_than(VectorXd v1, VectorXd v2)
 {
     for (int ik = 0; ik < v1.size(); ik++)
     {
-        if (fabs(v1(ik)) >= v2(ik))
+        if (fabs(v1(ik)) >= fabs(v2(ik)))
         {
             return true;
         }
@@ -28,9 +31,12 @@ bool any_greater_than(VectorXd v1, VectorXd v2)
  *****************************************************
  */
 
-VectorXd levenberg_marquardt(VectorXd (*fn)(VectorXd, void*), MatrixXd (*jacobian)(VectorXd, void*), void* params, VectorXd x, const double TolX, const double TolY, optimizer_result &result)
+//#define PRINT_ITERATION_DETAILS
+
+VectorXd levenberg_marquardt(VectorXd (*fn)(VectorXd, void*), int (*jacobian)(VectorXd, Eigen::SparseMatrix<double>&, void*), void* params, VectorXd x, const double TolX, const double TolY, optimizer_result &result)
 {
-	const unsigned int MaximumIterationNumber = 1500;
+    const problem* prob = (problem*)params;
+	const unsigned int MaximumIterationNumber = 100;
 
 	// Residual at starting point
     VectorXd r = fn(x, params);
@@ -41,20 +47,24 @@ VectorXd levenberg_marquardt(VectorXd (*fn)(VectorXd, void*), MatrixXd (*jacobia
 
     double jepsx = TolX;
 
-    MatrixXd J = jacobian(x, params);
+    Eigen::SparseMatrix<double> J(prob->sum_obs, prob->sum_unknowns);    
+
+    jacobian(x, J, params);    
+
     //Debug.WriteLine("Jacobian: " + J);
 
     int nfJ = 2;
-    MatrixXd A = J.transpose() * J;
+    Eigen::SparseMatrix<double> A = J.transpose() * J;
     VectorXd v = J.transpose() * r;
 
     // Automatic scaling
-    MatrixXd D = A.diagonal().asDiagonal();
-    size_t Ddim = min(D.rows(), D.cols());
+    MatrixXd Dd = A.diagonal().asDiagonal();   // TODO: implement to be sparse!
+    size_t Ddim = min(Dd.rows(), Dd.cols());
     for (int i = 0; i < Ddim; i++)
     {
-        if (D(i, i) == 0) D(i, i) = 1.0;
+        if (Dd(i, i) == 0) Dd(i, i) = 1.0;
     }
+    Eigen::SparseMatrix<double> D = Dd.sparseView();
 
     double Rlo = 0.25;
     double Rhi = 0.75;
@@ -67,19 +77,92 @@ VectorXd levenberg_marquardt(VectorXd (*fn)(VectorXd, void*), MatrixXd (*jacobia
 
     VectorXd d = VectorXd::Ones(lx) * TolX;
 
+    SimplicialLLT<SparseMatrix<double>> solver; 
+    solver.analyzePattern(A);
+    
     //while (cnt < MaximumIterationNumber)
     while ((cnt < MaximumIterationNumber) && any_greater_than(d, epsx) && (any_greater_than(r, epsy)))
     {
         // negative solution increment
         //d = SolveLinearEquationSystem(A.Add((l.Multiply(D))), v);
-        d = (A + l*D).ldlt().solve(v); // use ldlt for stability.
+        //d = (A + l*D).ldlt().solve(v); // use ldlt for stability.
+        //d = (A + l*D).inverse()*(v); 
         //d = (A + l*D).llt().solve(v); 
         
-        //d = (A + l*D).householderQr().solve(v);
+        #ifdef PRINT_ITERATION_DETAILS
+        cout << "Iteration #" << cnt << endl;
+        clock_t t = clock();
+        clock_t t0 = t;
+        clock_t tsys = t;
+        #endif       
         
-        /*LeastSquaresConjugateGradient<SparseMatrix<double> > lscg;
-        lscg.compute( (A + l*D).sparseView() );
-        d = lscg.solve(v);*/
+        Eigen::SparseMatrix<double> Av = A + l*D;        
+
+        // Schur complement
+        // Sparse Choelsky seems faster than all matrix manipluation under here
+        /*size_t n_cblock = prob->sum_unknowns - prob->start_idx_obj_pts;
+        MatrixXd Cd = Av.block(prob->start_idx_obj_pts, prob->start_idx_obj_pts, n_cblock, n_cblock); // sparse
+        MatrixXd E = Av.block(0, prob->start_idx_obj_pts, prob->start_idx_obj_pts, n_cblock);
+        Eigen::SparseMatrix<double> B = Av.block(0, 0, prob->start_idx_obj_pts, prob->start_idx_obj_pts); // sparse
+        
+        #ifdef PRINT_ITERATION_DETAILS
+        cout << "   Initalization [s]: " << (float)(clock() - t)/CLOCKS_PER_SEC << endl;
+        t = clock();
+        #endif
+        
+        MatrixXd Cinvd = MatrixXd::Zero(Cd.rows(), Cd.cols());
+        for (size_t k = 0; k < n_cblock; k+=3)
+        {
+            Cinvd.block<3,3>(k, k) = Cd.block<3,3>(k, k).inverse();            
+        }
+        Eigen::SparseMatrix<double> Cinv = Cinvd.sparseView();
+
+        #ifdef PRINT_ITERATION_DETAILS
+        cout << "   C inverse[s]: " << (float)(clock() - t)/CLOCKS_PER_SEC << endl;
+        t = clock();
+        #endif
+        
+        VectorXd v2 = v.head(prob->start_idx_obj_pts);
+        VectorXd w = v.tail(n_cblock);        
+        
+        SparseMatrix<double> Sch = B - E*Cinv*E.transpose(); // this seems to be very computation intensive here
+        VectorXd rhs = v2 - E*Cinv*w;                
+        //VectorXd dy =(B - E*Cinv*E.transpose()).llt().solve(v2 - E*Cinv*w); // dense version
+        
+        #ifdef PRINT_ITERATION_DETAILS
+        cout << "   S calculation [s]: " << (float)(clock() - t)/CLOCKS_PER_SEC << endl;
+        t = clock();
+        #endif
+        
+        SimplicialLLT<SparseMatrix<double>> solver; // sparse version
+        VectorXd dy = solver.compute(Sch).solve(rhs);
+         
+        VectorXd dz = Cinv*(w-E.transpose()*dy);        
+        d << dy, dz;*/
+        
+        // Sparse Choelsky without analyzePatter
+        //VectorXd d = solver.compute(Av).solve(v);
+
+        // Sparse Choelsky with analyzePattern
+        solver.factorize(Av);
+        VectorXd d = solver.solve(v);
+
+        // Conjugate gradient; preconditioing might be needed
+        /*ConjugateGradient<SparseMatrix<double>, Eigen::Upper> solver;
+        VectorXd d = solver.compute(Av).solve(v);*/
+
+        #ifdef PRINT_ITERATION_DETAILS
+        cout << "   Chloesky [s]: " << (float)(clock() - t)/CLOCKS_PER_SEC << endl;
+        t = clock();
+        #endif
+        
+       
+        
+        #ifdef PRINT_ITERATION_DETAILS
+        cout << "   dz calculation [s]: " << (float)(clock() - t)/CLOCKS_PER_SEC << endl;
+        cout << "   Normal system time [s]: " << (float)(clock() - tsys)/CLOCKS_PER_SEC << endl;
+        t = clock();
+        #endif
         
         VectorXd xd = x - d;
         VectorXd rd = fn(xd, params);
@@ -98,7 +181,9 @@ VectorXd levenberg_marquardt(VectorXd (*fn)(VectorXd, void*), MatrixXd (*jacobia
         {
             double nu = (Sd - S) / (d.dot(v)) + 2;
             if (nu < 2)
+            {
                 nu = 2;
+            }
             else if (nu > 10)
             {
                 nu = 10;
@@ -106,18 +191,19 @@ VectorXd levenberg_marquardt(VectorXd (*fn)(VectorXd, void*), MatrixXd (*jacobia
 
             if (l == 0)
             {
-                VectorXd diag = A.inverse().diagonal();
+                //VectorXd diag = A.inverse().diagonal();
+                VectorXd diag = A.diagonal();
                 
-                /*double max_pos = diag.Max();
-                double max_neg = Math.Abs(diag.Min());*/
-                double max_pos = diag(0);
-                double max_neg = diag(0);
-                for (int k=0; k<diag.size();k++)
+                double max_pos = diag.maxCoeff();
+                double max_neg = abs(diag.minCoeff());
+                /*double max_pos = diag(0);
+                double max_neg = diag(0);*/
+                /*for (int k=0; k<diag.size();k++)
                 {
                 	max_pos = max_pos > diag(k) ? max_pos : diag(k);
                 	max_neg = max_neg < diag(k) ? max_neg : diag(k);
                 }
-				max_neg = abs(max_neg);
+				max_neg = abs(max_neg);*/
 
                 double abs_max = max_pos > max_neg ? max_pos : max_neg;
                 lc = 1 / abs_max;
@@ -128,6 +214,11 @@ VectorXd levenberg_marquardt(VectorXd (*fn)(VectorXd, void*), MatrixXd (*jacobia
         }
 
         cnt++;
+        
+        #ifdef PRINT_ITERATION_DETAILS
+        cout << "   Adjusting time [s]: " << (float)(clock() - t)/CLOCKS_PER_SEC << endl;
+        t = clock();
+        #endif
 
         if (Sd < S)
         {
@@ -135,15 +226,32 @@ VectorXd levenberg_marquardt(VectorXd (*fn)(VectorXd, void*), MatrixXd (*jacobia
 
             x = xd;
             r = rd;
-            J = jacobian(x, params);
+            jacobian(x, J, params);
+            
+            #ifdef PRINT_ITERATION_DETAILS
+            cout << "   Populate Jacobian   [s]: " << (float)(clock() - t)/CLOCKS_PER_SEC << endl;
+            cout << "   # of non-zeros in J [s]: " << J.nonZeros() << endl;
+            t = clock();
+            #endif
 
             nfJ = nfJ + 1;
             A = J.transpose() * J;
             v = J.transpose() * r;
+            
+            #ifdef PRINT_ITERATION_DETAILS
+            cout << "   Update A and v [s]: " << (float)(clock() - t)/CLOCKS_PER_SEC << endl;
+            t = clock();
+            #endif
         }
 
+        #ifdef PRINT_ITERATION_DETAILS
+        cout << "   Rest of iteration [s]: " << (float)(clock() - t)/CLOCKS_PER_SEC << endl;
 		//cout << "r=" << "\n";
-        //std::cout << r.norm() << "\n";
+        std::cout << "   Residual : " << r.norm() << "\n";
+        cout << "   Total iteration [s]: " << (float)(clock() - t0)/CLOCKS_PER_SEC << endl;
+        //std::cout << std::endl;
+        //std::cout << d << std::endl;
+        #endif
     }
 
     result.J = J;

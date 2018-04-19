@@ -26,6 +26,7 @@ struct stochastic_params
     Eigen::MatrixXd Mxx;
     Eigen::MatrixXd Mll;
 };
+
 void calc_stochastic(const optimizer_result &result, stochastic_params &params);
 
 int bundle_adjustment(problem &prob, problem_result &result);

@@ -40,13 +40,25 @@ void mexFunction(int nlhs, mxArray *plhs[],
     LOG(" ");
     LOG2I("   sum_unknowns: ", prob.sum_unknowns);
     LOG2I("        sum_obs: ", prob.sum_obs);
-    LOG2I("        n_imgs : ", prob.n_imgs);
-    LOG2I("  no_of_img_var: ", prob.no_of_img_var);
-    LOG2I("       idx_imgs: ", prob.idx_imgs);
-    LOG2I("        n_cams : ", prob.n_cams);
-    LOG2I("  no_of_cam_var: ", prob.no_of_cam_var);
-    LOG2I("       idx_cams: ", prob.idx_cams);
+    
+    LOG(" ");
+    LOG("Object points:")
+    LOG2I("       n_obj_pt: ", prob.obj_pts.size());
+    LOG2I("   start_idx_pt: ", prob.start_idx_obj_pts);
+    LOG2I("     end_idx_pt: ", prob.end_idx_obj_pts);
 
+    LOG(" ");
+    LOG("Images (exteriors):")
+    LOG2I("        n_imgs : ", prob.imgs.size());
+    LOG2I(" start_idx_imgs: ", prob.start_idx_imgs);
+    LOG2I("   end_idx_imgs: ", prob.end_idx_imgs);
+
+    LOG(" ");
+    LOG("Cameras (interiors):")
+    LOG2I("        n_cams : ", prob.cams.size());
+    LOG2I(" start_idx_cams: ", prob.start_idx_cams);
+    LOG2I("   end_idx_cams: ", prob.end_idx_cams);
+    
     clock_t t = clock();
     problem_result result;
     bundle_adjustment(prob, result);
@@ -79,6 +91,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
     
     if (nlhs > 1)
     {
+        LOG("Calculating stochastics...");
         // calc stochastic parameters
         stochastic_params stoch;
         calc_stochastic(result.optimizer_result, stoch);

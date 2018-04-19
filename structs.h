@@ -28,6 +28,7 @@ struct object_pt
 {
     int id;
     int tid; 
+    size_t xid;
     
     double x;
     double y;
@@ -46,6 +47,7 @@ struct camera
 {
     int id; 
     int tid; 
+    size_t xid;
     
     int cam_type;
     
@@ -68,7 +70,8 @@ struct camera
 struct img
 {
     int id; 
-    int tid;     
+    int tid;  
+    size_t xid;
     
     double x;
     double y;
@@ -113,13 +116,14 @@ struct problem
     size_t sum_unknowns;
     size_t sum_obs;
 
-    size_t n_imgs;
-    size_t no_of_img_var;
-    size_t idx_imgs;
+    size_t start_idx_imgs;
+    size_t end_idx_imgs;
 
-    size_t n_cams;    
-    size_t no_of_cam_var;
-    size_t idx_cams;
+    size_t start_idx_cams;
+    size_t end_idx_cams;
+
+    size_t start_idx_obj_pts;
+    size_t end_idx_obj_pts;
 };
 
 #endif

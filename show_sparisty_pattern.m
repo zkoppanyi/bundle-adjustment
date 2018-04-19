@@ -1,6 +1,7 @@
 function show_sparisty_pattern(J, fig_num)
 
     sparI = J;
+    sparI(sparI < 1e-4) = 0;
     sparI(sparI == 0) = 0;
     sparI(sparI ~= 0) = 255;
 
