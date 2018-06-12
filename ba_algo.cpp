@@ -94,9 +94,10 @@ void mexFunction(int nlhs, mxArray *plhs[],
         LOG("Calculating stochastics...");
         // calc stochastic parameters
         stochastic_params stoch;
-        calc_stochastic(result.optimizer_result, stoch);
+        //calc_stochastic(result.optimizer_result, stoch);
         
-        LOG2F("Simga null: ", stoch.sigma_0);
+        //LOG2F("Simga null: ", stoch.sigma_0);
+        
         create_stoch_struct(result.optimizer_result, stoch, plhs[1]);
         
     }

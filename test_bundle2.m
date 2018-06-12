@@ -12,31 +12,21 @@ UNKNOWN = 2;
 
 scale = 4.87e-6;
 
-% Camera with distortion
-%cam1 = [0.05 -0.1*1e-4 1e-6 3.5*1e-8 1*1e-12 0 -2.5*1e-8 -2.5*1e-8];
-%cam2 = [0.02  0.1*1e-4 1e-6 3.5*1e-8 1.3*1e-12 0 -2.5*1e-8 -2.5*1e-8];
-cam1 = [0.05 -0.1*1e-4 1e-6 3.5*1e-4 1*1e-6 0 -2.5*1e-5 -2.5*1e-5];
-cam2 = [0.02  0.1*1e-4 1e-6 3.5*1e-4 1.3*1e-6 0 -2.5*1e-5 -2.5*1e-5];
-cams = [2 2 cam1 KNOWN; 
-        3 2 cam2 KNOWN];
-
 % Camera without distortion
-% cam1 = [0.05 -0.1*1e-4 1e-6];
-% cam2 = [0.02  0.1*1e-4 1e-6];
-% cams = [2 1 cam1 KNOWN; 
-%         3 1 cam2 KNOWN];
+cam1 = [0.05 -0.1*1e-4 1e-6];
+cams = [2 1 cam1 KNOWN];
 
 % generate tie points as grid
-objx = -25 : 5 : 25;
-objy = -25 : 5 : 25;
+objx = -100 : 10 : 100;
+objy = -100 : 10 : 100;
 [objx, objy] = meshgrid(objx, objy);
 objx = objx(:);
 objy = objy(:);
 n_tie_pts = length(objx);
 
 % generate control points as grid
-obj_ct_x = -25 : 15 : 25;
-obj_ct_y = -25 : 15 : 25;
+obj_ct_x = -100 : 80: 100;
+obj_ct_y = -100 : 80 : 100;
 [obj_ct_x, obj_ct_y] = meshgrid(obj_ct_x, obj_ct_y);
 obj_ct_x = obj_ct_x(:);
 obj_ct_y = obj_ct_y(:);
@@ -45,36 +35,33 @@ objy = [objy; obj_ct_y];
 n_ct_pts = length(obj_ct_x);
 
 n_test_pt = length(objx);
-obj_pts = [(1:n_test_pt)', objx, objy, (rand(n_test_pt, 1)-0.5)*10, ones(n_test_pt, 1)*KNOWN];
+obj_pts = [(1:n_test_pt)', objx, objy, (rand(n_test_pt, 1)-0.5)*20, ones(n_test_pt, 1)*KNOWN];
+   
+imgs = [];
+pt_id = 0;
+for i = -50 : 10 : 50
+    pt_id = pt_id + 1;
+    x = i;
+    y = i;
+    imgs = [imgs; pt_id x y 80  -3/180*pi 5/180*pi 0/180*pi 2 UNKNOWN];
+end
 
-imgs = [1 0  0  87   -3/180*pi 5/180*pi 95/180*pi 2 KNOWN;
-        2 0  0  56   -3/180*pi 5/180*pi 95/180*pi 2 KNOWN;
-        3 0  60 70   -3/180*pi 5/180*pi 75/180*pi 2 KNOWN;
-        4 65 55 50   30/180*pi 5/180*pi 55/180*pi 2 KNOWN;
-        5 50 20 87  -10/180*pi 5/180*pi 55/180*pi 3 KNOWN;
-        6 20 50 56   -3/180*pi 5/180*pi 55/180*pi 3 KNOWN;
-        7 50 50 70   -3/180*pi 5/180*pi 75/180*pi 3 KNOWN;
-        8 55 55 20   30/180*pi 5/180*pi 55/180*pi 3 KNOWN];
-
+for i = -50 : 10 : 50
+    pt_id = pt_id + 1;
+    x = i;
+    y = i+30;
+    imgs = [imgs; pt_id x y 80  -3/180*pi 5/180*pi 0/180*pi 2 UNKNOWN];
+end
     
-%% Initialization with backrpojection
+%% Initialization with backprojection
 disp('Starting backproject...');
 tic
-
-%imgs = [1 23 15 100  -3/180*pi 5/180*pi 95/180*pi 1 2];
 img_pts = [1 0 0 1 1 1];
 img_pts = backproject(img_pts, imgs, obj_pts, cams);
-cams(:,2) = 1;
-
-img_pts_ud = backproject(img_pts, imgs, obj_pts, cams);
-cams(:,2) = 2;
 
 toc
 disp('End backproject.')
 
-%% Bundle adjustment
-
-%img_pts(:,2:3) = img_pts(:,2:3) + normrnd(0, 0.0001, size(img_pts, 1), 2);
 
 obj_pts0 = obj_pts;
 tie_pts_idx  = 1 : n_tie_pts;
@@ -83,65 +70,73 @@ obj_pts0(tie_pts_idx, end) = UNKNOWN;
 obj_pts0(tie_pts_idx, 2:4) = obj_pts(tie_pts_idx, 2:4)+3;
 control_pts_idx = find(obj_pts0(:, end) == KNOWN);
 
+%%  Remove points that are not on the image 
+to_remove = find(and(abs(img_pts(:,2)/scale) > 2000, abs(img_pts(:,3)/scale) > 2000));
+img_pts(to_remove, :) = [];
+
+% remove points not seen by two images
+rm_list = [];
+for k = 1 : length(obj_pts0)
+    idx = find(obj_pts0(k,1) == img_pts(:,5));
+    if length(idx) < 2
+        rm_list = [rm_list; idx];
+    end
+end
+img_pts(rm_list,:) = [];
+
+% remove object points that are not seen by any image
+rm_list = [];
+for k = 1 : length(obj_pts0)
+    if isempty(find(obj_pts0(k,1) == img_pts(:,5)))
+        rm_list = [rm_list; k];
+    end
+end
+obj_pts0(rm_list, :) = [];
+%%
+
+% add error to image points
+pix_error = 20;
+img_pts_gt = img_pts;
+img_pts(:,2:3) = img_pts(:,2:3) + normrnd(0, pix_error*scale, size(img_pts, 1), 2);
+
 fprintf("Number of tie points: %i\n", length(tie_pts_idx));
 fprintf("Number of control points: %i\n", length(control_pts_idx));
 
-
-cam10 = [0.052 0 0 1e-4 1e-6 0 1e-5 1e-5];
-cam20 = [0.012 0 0 1e-4 1e-6 0 1e-5 1e-5];
-cams0 = [2 2 cam10 UNKNOWN; 
-         3 2 cam20 UNKNOWN];
+cam10 = [0.053 -0.1*1e-4 1e-6];
+cams0 = [2 1 cam10 UNKNOWN];
    
 imgs0 = imgs;
-imgs0(:, 2:4) = imgs0(:, 2:4) + rand(size(imgs0,1), 3)*5;
-imgs0(:, 5:7) = imgs0(:, 5:7) + rand(size(imgs0,1), 3)*5/180*pi;
+imgs0(:, 2:4) = imgs0(:, 2:4) + (rand(size(imgs0,1), 3)-0.5)*2*5;
+imgs0(:, 5:7) = imgs0(:, 5:7) + (rand(size(imgs0,1), 3)-0.5)*2*5/180*pi;
 imgs0(:, end) = UNKNOWN;
 
 disp('Starting bundle...');
 tic
 
-% 1. First solve without distortions
-% cams0(:,2) = 1;
-% sol = ba_algo(img_pts, imgs0, obj_pts0, cams0);
-% cams0(:, 3:5) = sol.cams(:, 3:5);
-% %sol.cams(:,2) = 1;
+[sol, stoch] = ba_algo(img_pts, imgs0, obj_pts0, cams0);
 
-
-% 2. Solve with distortions
-cams0(:,2) = 2;
-%[sol, stoch] = ba_algo(img_pts, sol.imgs, obj_pts0, cams0);
-%sol = ba_algo(img_pts, sol.imgs, obj_pts0, cams0);
-sol = ba_algo(img_pts, imgs0, obj_pts0, cams0);
-
-img_pts_ud2 = backproject(img_pts, sol.imgs, sol.obj_pts, sol.cams);
-plot_problem(1, sol.img_pts, sol.imgs, sol.obj_pts, sol.cams, 'g');
+N = stoch.J'*stoch.J;
+if size(N,1) ~= rank(N)
+    disp("Wrong J structure!")
+else
+    disp("J structure is fine!")    
+end
 
 toc
 disp('End bundle.')
 
+%imgs
+%imgs0
+%sol.imgs
+dp = sol.imgs(:,2:4) - imgs(:,2:4);
+fprintf("Image coordinate error from ground truth: %.3f\n", mean(abs(dp(:))) );
+%dp = sol.img_pts(:,2:3) - img_pts_gt(:,2:3);
+%fprintf("Simulated pixel error: %.3f\n", pix_error);
+%fprintf("Predicted pixel error: %.3f\n", std(dp(:))/scale);
+
+
+%return;
 %% Visualization
-
-% Radial distrotion
-idx = find(img_pts(:, 4) == 1);
-dr = img_pts(idx,2:3) - img_pts_ud2(idx,2:3);
-dr = sqrt(dr(:,1).^2 + dr(:,2).^2);
-r = sqrt(img_pts_ud2(idx,2).^2 + img_pts_ud2(idx,3).^2);
-figure(2); clf; hold on;
-plot(r, dr, 'r*');
-title('Radial distrotion');
-
-show_radial_distortion_profile(sol, 0);
-
-% Image plane
-figure(1); clf; hold on;
-idx = find(img_pts(:, 4) == 1);
-plot(img_pts(idx,2), img_pts(idx,3), 'r.', 'MarkerSize', 10);
-plot(img_pts_ud(idx,2), img_pts_ud(idx,3), 'b.', 'MarkerSize', 10);
-plot(img_pts_ud2(idx,2), img_pts_ud2(idx,3), 'go');
-legend('Distorted', 'Undistorted (ground truth)', 'Undistorted (solution)');
-title('Image plane');
-grid on;
-axis equal;
 
 % Stochastics results
 % diagMxx = diag(stoch.Mxx);
@@ -153,12 +148,19 @@ axis equal;
 % fprintf(' Img. coor. apost. error: %.3f pixel\n', norm(apostMll));
 
 %
-figure(3);
+figure(1);
 plot_problem(1, sol.img_pts, sol.imgs, sol.obj_pts, sol.cams, 'g');
+return;
+
 
 % Sparsity pattern
-% figure(2);
-% show_sparisty_pattern(stoch.J, 10);
+show_sparisty_pattern(stoch.J, 2);
+show_sparisty_pattern(stoch.J'*stoch.J, 3);
+
+N = stoch.J'*stoch.J;
+if size(N,1) ~= rank(N)
+    disp("Wrong J structure!")
+end
 
 %%
 % J = stoch.J;

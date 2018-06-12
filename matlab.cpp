@@ -350,7 +350,7 @@ int extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pro
 
 void create_stoch_struct(const optimizer_result &optimizer_result, const stochastic_params &stoch, mxArray* &ret)
 {
-        mxArray* Mxx;        
+        /*mxArray* Mxx;        
         eigen2mat(stoch.Mxx, Mxx); 
         
         mxArray* Mll;        
@@ -368,7 +368,13 @@ void create_stoch_struct(const optimizer_result &optimizer_result, const stochas
         mxSetFieldByNumber(ret,0,0, Mxx);
         mxSetFieldByNumber(ret,0,1, Mll);
         mxSetFieldByNumber(ret,0,2, J);
-        mxSetFieldByNumber(ret,0,3, sigma_0);   
+        mxSetFieldByNumber(ret,0,3, sigma_0);   */
+    
+        mxArray* J;        
+        eigen2mat(optimizer_result.J, J); 
+        const char *fieldnames[] = {"J"};        
+        ret = mxCreateStructMatrix(1,1,1,fieldnames);
+        mxSetFieldByNumber(ret,0,0, J);
 }
 
 void create_problem_struct(const problem &prob, mxArray* &ret)

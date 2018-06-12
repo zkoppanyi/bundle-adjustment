@@ -125,5 +125,5 @@ plot_problem(1, sol.img_pts, sol.imgs, sol.obj_pts, sol.cams, 'g');
 
 % Sparsity pattern
 % figure(2);
-% show_sparisty_pattern(stoch.J, 10);
+show_sparisty_pattern(stoch.J, 10);
 

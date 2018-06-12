@@ -128,8 +128,7 @@ int bundle_adjustment(problem &prob, problem_result &result)
     for (size_t i = 0; i < prob.obj_pts.size(); i++)
     {
         object_pt& pt = prob.obj_pts[i];
-        if (pt.type == KNOWN) continue;
-        
+        if (pt.type == KNOWN) continue;        
         size_t idx_pt = pt.xid;
         pt.x = sol_vec(idx_pt + 0);
         pt.y = sol_vec(idx_pt + 1);
@@ -170,8 +169,7 @@ int bundle_adjustment(problem &prob, problem_result &result)
             cam.p2 = sol_vec(idx_cam + 7);           
         }
     }  
-         
-    
+        
 	double r_norm = opt_result.r.norm();        
     result.residual = r_norm;    
 
@@ -224,8 +222,7 @@ VectorXd bundle_adjustment_fn(VectorXd x, void* params)
             obj_pt.x    = x(idx_pt + 0);
             obj_pt.y    = x(idx_pt + 1);
             obj_pt.z    = x(idx_pt + 2);                     
-        }        
-        
+        }                
         
         img_pt pti0;
         backproject(obj_pt, img, cam, pti0);
@@ -288,8 +285,8 @@ int bundle_adjustment_jacobian(VectorXd x, Eigen::SparseMatrix<double> &J, void*
                 img_pt pt = prob->img_pts[i];
                 
                 //scaling for robustness
-                //pt.x *= 1e3;
-                //pt.y *= 1e3;
+                pt.x *= 1e3;
+                pt.y *= 1e3;
                 photo_jacobian_problem_camera_distort::populate(tripletList, (int)i*2, (int)idx_cam, obj_pt, img, cam, pt);
             }     
             else
@@ -298,14 +295,16 @@ int bundle_adjustment_jacobian(VectorXd x, Eigen::SparseMatrix<double> &J, void*
             }
         }
         
-        if (obj_pt.type == UNKNOWN) 
+        if (obj_pt.type == UNKNOWN)  
         {        
             size_t idx_pt = obj_pt.xid;
+            obj_pt.x    = x(idx_pt + 0);
+            obj_pt.y    = x(idx_pt + 1);
+            obj_pt.z    = x(idx_pt + 2);
             photo_jacobian_problem_triang::populate(tripletList, (int)i*2, (int)idx_pt, obj_pt, img, cam);                               
         }     
         
     }
-    
     J.setFromTriplets(tripletList.begin(), tripletList.end());
     
     //print(J);
@@ -356,8 +355,8 @@ int backproject(const point3d &pt, img &img, const camera &cam, img_pt &pti)
     
     if (cam.cam_type == CAM_TYPE_DISTORTED)
     {   
-        double x_hat = (pti.x - cam.cx); // * 1e+3;
-        double y_hat = (pti.y - cam.cy); // * 1e+3;
+        double x_hat = (pti.x - cam.cx) * 1e+3;
+        double y_hat = (pti.y - cam.cy) * 1e+3;
         double r = sqrt(pow(x_hat, 2) + pow(y_hat, 2));
         double dx = x_hat * (cam.k1 * pow(r, 2) + cam.k2 * pow(r, 4) + cam.k3 * pow(r, 6)) + cam.p1*(pow(r,2) + 2*pow(x_hat,2)) + 2*cam.p2*x_hat*y_hat;
         double dy = y_hat * (cam.k1 * pow(r, 2) + cam.k2 * pow(r, 4) + cam.k3 * pow(r, 6)) + 2*cam.p1*x_hat*y_hat + cam.p2*(pow(r,2) + 2*pow(y_hat,2));
@@ -420,7 +419,6 @@ int init_problem(problem &prob)
     } 
     prob.end_idx_obj_pts = xid;
     
-
     prob.n_unknown_img_pts = 0;
     for (size_t i = 0; i < prob.img_pts.size(); i++)
     {
