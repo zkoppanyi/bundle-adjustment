@@ -19,41 +19,54 @@ using namespace std;
 
 void calc_stochastic(const optimizer_result &result, stochastic_params &params)
 {
-     const MatrixXd& J = result.J;
-     const VectorXd& r = result.r;
-         
-     int f = (int)J.rows() - (int)J.cols();
+    if (result.J.rows()*result.J.cols() < MAX_MATRIX_SIZE)
+    {  
+        /*const MatrixXd& J = result.J;
+        const VectorXd& r = result.r;
+
+        int f = (int)J.rows() - (int)J.cols();*/
+
+        /* 
+        // calcualte rank for this; too slow...
+        MatrixXd N = J.transpose()*J;
+        VectorXd dr = J.transpose()*r;
+        MatrixXd Naux = N;
+        Naux.conservativeResize(Naux.rows(), Naux.cols()+1);
+        Naux.col(Naux.cols()-1) = dr;
+        FullPivLU<MatrixXd> lu_decomp(J);
+        size_t rank = lu_decomp.rank();
+        LOG2I("rank= ", rank);
+        LOG2I("f= ", f);
+        LOG2I("J.rows()= ", (int)J.rows());
+        LOG2I("J.cols()= ", (int)J.cols());
+        print(J);*/
+
+        /*double sigma_0_sqr = r.dot(r) / (double)f;
+
+        // get inverse of the normal matrix with Cheolesky
+        MatrixXd N = J.transpose()*J;
+        MatrixXd Ninv = N.ldlt().solve(MatrixXd::Identity(N.rows(), N.cols()));
+        //MatrixXd Ninv = N.inverse();
+
+        // Weight coefficient matrices
+        MatrixXd Qxx = Ninv;
+        MatrixXd Qll = J*Qxx*J.transpose();
+
+        // Variance-covariance matrices
+        params.sigma_0 = sqrt(sigma_0_sqr);
+        params.Mxx = sigma_0_sqr * Ninv;
+        params.Mll = sigma_0_sqr * Qll; */
+        
+        params.status = 0;
+        strcpy(params.status_msg, "OK");
+    }
+    else
+    {
+        params.status = -1;
+        sprintf(params.status_msg, "Jacobian is too large to calculate stochastic parameters!\nJacobian size: %d x %d (%d = %.1f MB)\nMax allowed: MAX_MATRIX_SIZE %d = %.1f MB", result.J.rows(), result.J.cols(), result.J.rows()*result.J.cols(), result.J.rows()*result.J.cols()*sizeof(double)/1000000.0, MAX_MATRIX_SIZE, MAX_MATRIX_SIZE*sizeof(double)/1000000.0);
+
+    }
     
-    /* 
-    // calcualte rank for this; too slow...
-    MatrixXd N = J.transpose()*J;
-    VectorXd dr = J.transpose()*r;
-    MatrixXd Naux = N;
-    Naux.conservativeResize(Naux.rows(), Naux.cols()+1);
-    Naux.col(Naux.cols()-1) = dr;
-    FullPivLU<MatrixXd> lu_decomp(J);
-    size_t rank = lu_decomp.rank();
-    LOG2I("rank= ", rank);
-    LOG2I("f= ", f);
-    LOG2I("J.rows()= ", (int)J.rows());
-    LOG2I("J.cols()= ", (int)J.cols());
-    print(J);*/
-
-    double sigma_0_sqr = r.dot(r) / (double)f;
-
-    // get inverse of the normal matrix with Cheolesky
-    MatrixXd N = J.transpose()*J;
-    MatrixXd Ninv = N.ldlt().solve(MatrixXd::Identity(N.rows(), N.cols()));
-    //MatrixXd Ninv = N.inverse();
-    
-    // Weight coefficient matrices
-    MatrixXd Qxx = Ninv;
-    MatrixXd Qll = J*Qxx*J.transpose();
-
-    // Variance-covariance matrices
-    params.sigma_0 = sqrt(sigma_0_sqr);
-    params.Mxx = sigma_0_sqr * Ninv;
-    params.Mll = sigma_0_sqr * Qll;  
 }
 
 /*

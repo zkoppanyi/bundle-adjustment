@@ -31,7 +31,14 @@ bool any_greater_than(VectorXd v1, VectorXd v2)
  *****************************************************
  */
 
-//#define PRINT_ITERATION_DETAILS
+#define PRINT_ITERATION_DETAILS
+
+//#define SOLVER_TYPE 1  // Sparse Choelsky without analyzePatter
+//#define SOLVER_TYPE 3  // Conjugate gradient; preconditioing might be needed
+//#define SOLVER_TYPE 2  // Sparse Choelsky with analyzePattern 
+#define SOLVER_TYPE 41 // Shur complement
+
+typedef Eigen::Triplet<double> T;
 
 VectorXd levenberg_marquardt(VectorXd (*fn)(VectorXd, void*), int (*jacobian)(VectorXd, Eigen::SparseMatrix<double>&, void*), void* params, VectorXd x, const double TolX, const double TolY, optimizer_result &result)
 {
@@ -73,35 +80,143 @@ VectorXd levenberg_marquardt(VectorXd (*fn)(VectorXd, void*), int (*jacobian)(Ve
 
     VectorXd epsx = VectorXd::Ones(lx) * TolX;
     VectorXd epsy = VectorXd::Ones(lr) * TolY;
-
-    VectorXd d = VectorXd::Ones(lx) * TolX;
-
+    VectorXd d = VectorXd::Ones(lx) * TolX;   
+    
     SimplicialLLT<SparseMatrix<double>> solver; 
-    solver.analyzePattern(A);
+    bool is_pattern_anal = false;
+    if (SOLVER_TYPE == 2)
+    {       
+        solver.analyzePattern(A);
+        bool is_pattern_anal = true;
+    }
     
     double res_prev = 10000;
-    double dr = 1000;
+    double dr = 1000;    
+    
     while ((cnt < MaximumIterationNumber) && any_greater_than(d, epsx) && (any_greater_than(r, epsy)) && (dr > TolY))
     {       
-       #ifdef PRINT_ITERATION_DETAILS
-        cout << "Iteration #" << cnt << endl;
-        clock_t t = clock();
-        clock_t t0 = t;
-        clock_t tsys = t;
+        #ifdef PRINT_ITERATION_DETAILS
+            cout << "Iteration #" << cnt << endl;
+            char buffer[250];
+            sprintf(buffer, "   Jacobian size: %d x %d (%d = %.1f MB)", J.rows(), J.cols(), J.rows()*J.cols(), J.rows()*J.cols()*sizeof(double)/1000000.0);
+            cout << buffer << endl;
+            sprintf(buffer, "   Normal matrix size: %d x %d (%d = %.1f MB)", A.rows(), A.cols(), A.rows()*A.cols(), A.rows()*A.cols()*sizeof(double)/1000000.0);
+            cout << buffer << endl;
+                    
+            clock_t t = clock();
+            clock_t t0 = t;
+            clock_t tsys = t;
         #endif       
         
         Eigen::SparseMatrix<double> Av = A + l*D;               
         
         // Sparse Choelsky without analyzePatter
-        //VectorXd d = solver.compute(Av).solve(v);
+        if (SOLVER_TYPE == 1)
+        {
+            #ifdef PRINT_ITERATION_DETAILS
+                cout << "   Solver type: Sparse Choelsky without pre-pattern analysis" << endl;
+            #endif
+                
+            d = solver.compute(Av).solve(v);
+        }        
 
         // Sparse Choelsky with analyzePattern
-        solver.factorize(Av);
-        VectorXd d = solver.solve(v);
+        if (SOLVER_TYPE == 2)
+        {
+            #ifdef PRINT_ITERATION_DETAILS
+                cout << "   Solver type: Sparse Choelsky with pre-pattern analysis" << endl;
+            #endif
+
+            solver.factorize(Av);
+            d = solver.solve(v);
+        }
 
         // Conjugate gradient; preconditioing might be needed
-        //ConjugateGradient<SparseMatrix<double>, Eigen::Upper> solver;
-        //VectorXd d = solver.compute(Av).solve(v);
+        if (SOLVER_TYPE == 3)
+        {
+            #ifdef PRINT_ITERATION_DETAILS
+                cout << "   Solver type: Conjugate gradient" << endl;
+            #endif
+
+            ConjugateGradient<SparseMatrix<double>, Eigen::Upper> solver;
+            d = solver.compute(Av).solve(v);
+        }
+        
+        // Schur complement       
+        if (SOLVER_TYPE >= 40)
+        {
+            #ifdef PRINT_ITERATION_DETAILS
+                cout << "   Solver type: Schur complement" << endl;
+            #endif
+
+                
+            size_t n_cblock = prob->sum_unknowns - prob->start_idx_obj_pts;
+            Eigen::SparseMatrix<double> Cd = Av.block(prob->start_idx_obj_pts, prob->start_idx_obj_pts, n_cblock, n_cblock); // sparse
+            MatrixXd E = Av.block(0, prob->start_idx_obj_pts, prob->start_idx_obj_pts, n_cblock);
+            Eigen::SparseMatrix<double> B = Av.block(0, 0, prob->start_idx_obj_pts, prob->start_idx_obj_pts); // sparse
+
+            #ifdef PRINT_ITERATION_DETAILS
+            cout << "   Initalization [s]: " << (float)(clock() - t)/CLOCKS_PER_SEC << endl;
+            t = clock();
+            #endif
+
+            /*MatrixXd Cd = Av.block(prob->start_idx_obj_pts, prob->start_idx_obj_pts, n_cblock, n_cblock); // sparse
+            MatrixXd Cinvd = MatrixXd::Zero(Cd.rows(), Cd.cols());
+            for (size_t k = 0; k < n_cblock; k+=3)
+            {
+                Cinvd.block<3,3>(k, k) = Cd.block<3,3>(k, k).inverse();            
+            }
+            Eigen::SparseMatrix<double> Cinv = Cinvd.sparseView();*/
+            
+            std::vector< Eigen::Triplet<double> > tripletList;
+            tripletList.reserve(n_cblock*3*3);
+            for (size_t k = 0; k < n_cblock; k+=3)
+            {
+                Matrix3d cInv = ((Matrix3d)Cd.block(k, k, 3, 3)).inverse();                      
+                tripletList.push_back(T(k+0,k+0,cInv(0,0)));
+                tripletList.push_back(T(k+0,k+1,cInv(0,1)));
+                tripletList.push_back(T(k+0,k+2,cInv(0,2)));
+                tripletList.push_back(T(k+1,k+0,cInv(1,0)));
+                tripletList.push_back(T(k+1,k+1,cInv(1,1)));
+                tripletList.push_back(T(k+1,k+2,cInv(1,2)));
+                tripletList.push_back(T(k+2,k+0,cInv(2,0)));
+                tripletList.push_back(T(k+2,k+1,cInv(2,1)));
+                tripletList.push_back(T(k+2,k+2,cInv(2,2)));                
+            }
+            Eigen::SparseMatrix<double> Cinv( Cd.rows(), Cd.cols() );
+            Cinv.setFromTriplets(tripletList.begin(), tripletList.end());
+
+            #ifdef PRINT_ITERATION_DETAILS
+                cout << "   C inverse[s]: " << (float)(clock() - t)/CLOCKS_PER_SEC << endl;
+                t = clock();
+            #endif
+
+            VectorXd v2 = v.head(prob->start_idx_obj_pts);
+            VectorXd w = v.tail(n_cblock);        
+            
+            SparseMatrix<double> Sch = B - E*Cinv*E.transpose(); // this seems to be very computation intensive here
+            VectorXd rhs = v2 - E*Cinv*w;                
+
+            // Solve the reduced camera system
+
+            // dense version
+            //VectorXd dy =(B - E*Cinv*E.transpose()).llt().solve(v2 - E*Cinv*w); 
+
+            // sparse version            
+            if (!is_pattern_anal)
+            {
+                 solver.analyzePattern(Sch);
+                 is_pattern_anal = true;
+            }
+            solver.factorize(Sch);
+            VectorXd dy = solver.solve(rhs);
+            
+            //VectorXd dy = solver.compute(Sch).solve(rhs);
+
+            VectorXd dz = Cinv*(w-E.transpose()*dy);        
+            d << dy, dz;
+        }
+               
 
         #ifdef PRINT_ITERATION_DETAILS
         cout << "   Chloesky [s]: " << (float)(clock() - t)/CLOCKS_PER_SEC << endl;

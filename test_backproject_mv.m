@@ -1,4 +1,7 @@
-% Backprojection for multiview cameras
+%%
+% Goal: Backprojection for multiview cameras
+%
+%%
 
 clear variables; clc; close all;
 
@@ -45,11 +48,11 @@ img_pts = backproject(img_pts, imgs, obj_pts, cams);
 plot_problem(1, img_pts, imgs, obj_pts, cams);
 
 %% Calculate fundamental matrix for checking the result
-w = 10; h = 10;
+width = 10; height = 10;
 img_pts1 = img_pts(img_pts(:,4) == 1, :);
 img_pts2 = img_pts(img_pts(:,4) == 2, :);
-img_pts1(:,2:3) = (img_pts1(:,2:3) - cams(1,4:5)) + [w h];
-img_pts2(:,2:3) = (img_pts2(:,2:3) - cams(2,4:5)) + [w h];
+img_pts1(:,2:3) = (img_pts1(:,2:3) - cams(1,4:5)) + [width height];
+img_pts2(:,2:3) = (img_pts2(:,2:3) - cams(2,4:5)) + [width height];
 F = estimateFundamentalMatrix(img_pts1(:,2:3), img_pts2(:,2:3), 'Method', 'Norm8Point');
 
 %K1 = [cams(1, 3) 0 0; 0 cams(1, 3) 0; w h 1];
@@ -98,8 +101,8 @@ rot2 = u * w' * v'; rotm2eul(rot2,'ZYX') / pi*180
 % t(:,:,4) = t1;
 
 % get relative camera pose
-K1 = cameraIntrinsics(cam1(1),cam1(2:3) + [w h], [2*w 2*h]);
-K2 = cameraIntrinsics(cam2(1),cam2(2:3) + [w h], [2*w 2*h]);
+K1 = cameraIntrinsics(cam1(1),cam1(2:3) + [width height], [2*width 2*height]);
+K2 = cameraIntrinsics(cam2(1),cam2(2:3) + [width height], [2*width 2*height]);
 [rot, t] = relativeCameraPose(F, K1, K2, img_pts1(:,2:3), img_pts2(:,2:3));
 eul_ang = rotm2eul(rot,'XYZ');
 eul_ang(1:2) = -eul_ang(1:2);

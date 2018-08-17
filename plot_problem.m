@@ -1,5 +1,5 @@
 
-function plot_problem(plot_k, img_pts, imgs, obj_pts, cams, color_in)
+function plot_problem(plot_k, img_pts, imgs, obj_pts, cams, opts)
 
     KNOWN = 1;
     UNKNOWN = 2;
@@ -8,14 +8,12 @@ function plot_problem(plot_k, img_pts, imgs, obj_pts, cams, color_in)
     %clf; 
     hold on;
 
-    color = 'r';
-    if nargin > 5
-        color = color_in;
-    end
-    
+    if nargin < 6
+        opts = plotset;
+    end        
     
     %cam_scale = 1;
-    cam_scale = 20;
+    cam_scale = opts.cam_scale;
     
     % plot cameras
     Rcams = {};
@@ -37,39 +35,43 @@ function plot_problem(plot_k, img_pts, imgs, obj_pts, cams, color_in)
         plot3(cam_x, cam_y, cam_z, 'r*');
         R = get_rotation_matrix(omega, phi, kappa);
         cam_dir = [0 0 f] * R * cam_scale;
-        plot3([cam_x cam_x+cam_dir(1)], [cam_y cam_y+cam_dir(2)], [cam_z cam_z+cam_dir(3)], [color '-']);
+        plot3([cam_x cam_x+cam_dir(1)], [cam_y cam_y+cam_dir(2)], [cam_z cam_z+cam_dir(3)], [opts.color_cam '-'], 'LineWidth', opts.line_width_cam);
 
         % camera plot
         pl = [-1 -1 0; -1 1 0; 1 1 0; 1 -1 0; -1 -1 0];
         cam_dir_f = [0 0 f] * R * cam_scale;
         plt = pl*R * cam_scale + repmat([cam_x - cam_dir_f(1), cam_y - cam_dir_f(2), cam_z - cam_dir_f(3)], size(pl,1), 1);
-        plot3(plt(:,1), plt(:,2), plt(:,3), [color '.-']);
+        plot3(plt(:,1), plt(:,2), plt(:,3), [opts.color_cam '.-'], 'LineWidth', opts.line_width_cam);
         for k = 1 : size(plt,1)
-            plot3([cam_x plt(k,1)], [cam_y plt(k,2)], [cam_z plt(k,3)], [color '.-']);
+            plot3([cam_x plt(k,1)], [cam_y plt(k,2)], [cam_z plt(k,3)], [opts.color_cam '.-'], 'LineWidth', opts.line_width_cam);
         end
         
         Rcams{i} = R;
     end
     
-    for i = 1 : size(img_pts, 1)
+    if opts.is_show_rays == 1
+        for i = 1 : size(img_pts, 1)
 
-        img_idx = find(imgs(:,1) == img_pts(i, 4));
-        cam_idx = find(cams(:,1) == imgs(img_idx, 8));
-        obj_pt_idx = find(obj_pts(:,1) == img_pts(i, 5));     
-        
-        f  = cams(cam_idx,3);
-        cx = cams(cam_idx,4);
-        cy = cams(cam_idx,5);
-        cam_x  = imgs(img_idx, 2);
-        cam_y  = imgs(img_idx, 3);
-        cam_z  = imgs(img_idx, 4);
-        R = Rcams{img_idx};
- 
-        plot3(obj_pts(obj_pt_idx,2), obj_pts(obj_pt_idx,3), obj_pts(obj_pt_idx,4), 'b.', 'MarkerSize', 20);      
-        plot3([cam_x obj_pts(obj_pt_idx,2)], [cam_y obj_pts(obj_pt_idx,3)], [cam_z obj_pts(obj_pt_idx,4)], 'b-');
+            img_idx = find(imgs(:,1) == img_pts(i, 4));
+            cam_idx = find(cams(:,1) == imgs(img_idx, 8));
+            obj_pt_idx = find(obj_pts(:,1) == img_pts(i, 5));     
 
-        pti2 = [img_pts(i,2)-cx, img_pts(i,3)-cy, -f] * R;
-        plot3(cam_x + pti2(1) * cam_scale, cam_y + pti2(2) * cam_scale, cam_z + pti2(3) * cam_scale, 'r.','MarkerSize', 12);
+            f  = cams(cam_idx,3);
+            cx = cams(cam_idx,4);
+            cy = cams(cam_idx,5);
+            cam_x  = imgs(img_idx, 2);
+            cam_y  = imgs(img_idx, 3);
+            cam_z  = imgs(img_idx, 4);
+            R = Rcams{img_idx};
+
+            plot3(obj_pts(obj_pt_idx,2), obj_pts(obj_pt_idx,3), obj_pts(obj_pt_idx,4), 'b.', 'MarkerSize', 20);      
+            plot3([cam_x obj_pts(obj_pt_idx,2)], [cam_y obj_pts(obj_pt_idx,3)], [cam_z obj_pts(obj_pt_idx,4)], 'b-');
+
+            pti2 = [img_pts(i,2)-cx, img_pts(i,3)-cy, -f] * R;
+            plot3(cam_x + pti2(1) * cam_scale, cam_y + pti2(2) * cam_scale, cam_z + pti2(3) * cam_scale, 'r.','MarkerSize', 12);
+        end
+    else
+        plot3(obj_pts(:,2), obj_pts(:,3), obj_pts(:,4), 'b.', 'MarkerSize', 10)
     end
     
     cobj_pts = obj_pts(obj_pts(:, end) == KNOWN, :); % control points

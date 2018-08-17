@@ -350,31 +350,45 @@ int extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pro
 
 void create_stoch_struct(const optimizer_result &optimizer_result, const stochastic_params &stoch, mxArray* &ret)
 {
-        /*mxArray* Mxx;        
-        eigen2mat(stoch.Mxx, Mxx); 
-        
-        mxArray* Mll;        
-        eigen2mat(stoch.Mll, Mll); 
+        if (stoch.status == 0)
+        {        
+            /*mxArray* Mxx;        
+            eigen2mat(stoch.Mxx, Mxx); 
 
-        mxArray* J;        
-        eigen2mat(optimizer_result.J, J); 
+            mxArray* Mll;        
+            eigen2mat(stoch.Mll, Mll); 
 
-        mxArray* sigma_0;        
-        eigen2mat(stoch.sigma_0, sigma_0);
+            mxArray* J;        
+            eigen2mat(optimizer_result.J, J); 
 
-        const char *fieldnames[] = {"Mxx", "Mll", "J", "sigma0"};        
-        ret = mxCreateStructMatrix(1,1,4,fieldnames);
-        
-        mxSetFieldByNumber(ret,0,0, Mxx);
-        mxSetFieldByNumber(ret,0,1, Mll);
-        mxSetFieldByNumber(ret,0,2, J);
-        mxSetFieldByNumber(ret,0,3, sigma_0);   */
-    
-        mxArray* J;        
-        eigen2mat(optimizer_result.J, J); 
-        const char *fieldnames[] = {"J"};        
-        ret = mxCreateStructMatrix(1,1,1,fieldnames);
-        mxSetFieldByNumber(ret,0,0, J);
+            mxArray* sigma_0;        
+            eigen2mat(stoch.sigma_0, sigma_0);
+
+            const char *fieldnames[] = {"Mxx", "Mll", "J", "sigma0", "status", "status_msg"};        
+            ret = mxCreateStructMatrix(1,1,4,fieldnames);
+
+            mxSetFieldByNumber(ret,0,0, Mxx);
+            mxSetFieldByNumber(ret,0,1, Mll);
+            mxSetFieldByNumber(ret,0,2, J);
+            mxSetFieldByNumber(ret,0,3, sigma_0); 
+            mxSetFieldByNumber(ret,0,4, mxCreateDoubleScalar(0)); 
+            mxSetFieldByNumber(ret,0,5, mxCreateString("OK")); */
+
+            mxArray* J;        
+            eigen2mat(optimizer_result.J, J); 
+            const char *fieldnames[] = {"J", "status", "status_msg"};        
+            ret = mxCreateStructMatrix(1,1,3,fieldnames);
+            mxSetFieldByNumber(ret, 0,0, J);
+            mxSetFieldByNumber(ret, 0,1, mxCreateDoubleScalar(-1));
+            mxSetFieldByNumber(ret, 0,2, mxCreateString(stoch.status_msg));
+        }
+        else
+        {
+            const char *fieldnames[] = {"status", "status_msg"};        
+            ret = mxCreateStructMatrix(1,1,2,fieldnames);
+            mxSetFieldByNumber(ret, 0,0, mxCreateDoubleScalar(-1));
+            mxSetFieldByNumber(ret, 0,1, mxCreateString(stoch.status_msg));            
+        }
 }
 
 void create_problem_struct(const problem &prob, mxArray* &ret)

@@ -1,3 +1,8 @@
+%%
+% Goal: An example and testing bundle adjusmtent with a simple camera setup
+%
+%%
+
 clear variables; clc; close all;
 
 %% Settings
@@ -80,13 +85,18 @@ cams0(:,2) = 2;
 [sol, stoch] = ba_algo(img_pts, sol.imgs, obj_pts, cams0);
 
 img_pts_ud2 = backproject(img_pts, sol.imgs, obj_pts, sol.cams);
-plot_problem(1, sol.img_pts, sol.imgs, sol.obj_pts, sol.cams, 'g');
 
 toc
 disp('End bundle.')
 
 
 %% Visualization
+
+opts = plotset;
+opts.color_cam = 'g';
+opts.is_show_rays = 1;
+plot_problem(1, sol.img_pts, sol.imgs, sol.obj_pts, sol.cams, opts);
+
 
 % Radial distrotion
 idx = find(img_pts(:, 4) == 1);
@@ -111,19 +121,15 @@ grid on;
 axis equal;
 
 % Stochastics results
-diagMxx = diag(stoch.Mxx);
-coorMxx = sqrt(diagMxx(1:3));
-rotMxx = sqrt(diagMxx(4:6));
-apostMll = sqrt(diag(stoch.Mll));
-fprintf('Coordinates apost. error: %.3f m\n', norm(coorMxx) );
-fprintf('  Rotations apost. error: %.3f deg\n', norm(rotMxx)/pi*180 );
-fprintf(' Img. coor. apost. error: %.3f pixel\n', norm(apostMll));
+% diagMxx = diag(stoch.Mxx);
+% coorMxx = sqrt(diagMxx(1:3));
+% rotMxx = sqrt(diagMxx(4:6));
+% apostMll = sqrt(diag(stoch.Mll));
+% fprintf('Coordinates apost. error: %.3f m\n', norm(coorMxx) );
+% fprintf('  Rotations apost. error: %.3f deg\n', norm(rotMxx)/pi*180 );
+% fprintf(' Img. coor. apost. error: %.3f pixel\n', norm(apostMll));
 
-%
-figure(3);
-plot_problem(1, sol.img_pts, sol.imgs, sol.obj_pts, sol.cams, 'g');
 
 % Sparsity pattern
-% figure(2);
 show_sparisty_pattern(stoch.J, 10);
 

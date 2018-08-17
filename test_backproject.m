@@ -1,3 +1,7 @@
+%%
+% Goal: Test backprojection code
+%%
+
 clear all; clc;
 
 % Cameras       : ID, cam_type, f, cx, cy, type
@@ -25,5 +29,7 @@ img_pts =[1 0 0 1 1 1];
 
 img_pts = backproject(img_pts, imgs, obj_pts, cams);
 
-plot_problem(1, img_pts, imgs, obj_pts, cams);
+opts = plotset;
+opts.is_show_rays = 1;
+plot_problem(1, img_pts, imgs, obj_pts, cams, opts);
 

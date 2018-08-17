@@ -1,5 +1,9 @@
-clear all; clc;
+%%
+% Goal: Test triangulation (TODO: the interface has been changed, so it doesn't
+% work currently; needs to be fixed)
+%%
 
+clear variables; clc;
 
 %% Stress triangulation
 

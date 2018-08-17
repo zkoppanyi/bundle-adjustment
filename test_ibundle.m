@@ -1,3 +1,7 @@
+%%
+% Goal: Tests for incremental bundle adjustmet (not finished)
+%%
+
 clear variables; clc; close all;
 
 KNOWN = 1;
