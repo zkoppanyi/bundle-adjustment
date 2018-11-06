@@ -35,5 +35,7 @@ struct stochastic_params
 void calc_stochastic(const optimizer_result &result, stochastic_params &params);
 
 int bundle_adjustment(problem &prob, problem_result &result);
+Eigen::VectorXd bundle_adjustment_fn(Eigen::VectorXd x, void* params);
+int bundle_adjustment_jacobian(Eigen::VectorXd x, Eigen::SparseMatrix<double>& J, void* params);
 
 #endif

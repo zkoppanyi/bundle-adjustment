@@ -75,9 +75,6 @@ void calc_stochastic(const optimizer_result &result, stochastic_params &params)
  *****************************************************
  */
 
-VectorXd bundle_adjustment_fn(VectorXd x, void* params);
-int bundle_adjustment_jacobian(VectorXd x, Eigen::SparseMatrix<double>& J, void* params);
-
 int bundle_adjustment(problem &prob, problem_result &result)
 {
     const double TolX = 1e-6;
@@ -141,8 +138,9 @@ int bundle_adjustment(problem &prob, problem_result &result)
     for (size_t i = 0; i < prob.obj_pts.size(); i++)
     {
         object_pt& pt = prob.obj_pts[i];
-        if (pt.type == KNOWN) continue;        
+        if (pt.type == KNOWN) continue;            
         size_t idx_pt = pt.xid;
+        
         pt.x = sol_vec(idx_pt + 0);
         pt.y = sol_vec(idx_pt + 1);
         pt.z = sol_vec(idx_pt + 2);         
@@ -182,6 +180,20 @@ int bundle_adjustment(problem &prob, problem_result &result)
             cam.p2 = sol_vec(idx_cam + 7);           
         }
     }  
+    
+    for (size_t i = 0; i < prob.img_pts.size(); i++)
+    {
+        img img = *(prob.img_pts[i].img_ptr);
+        camera cam = *( img.cam_ptr );     
+        object_pt obj_pt = *( prob.img_pts[i].obj_pts_ptr );
+        
+        img_pt pti;
+        backproject(obj_pt, img, cam, pti);
+        
+        prob.img_pts[i].x   = pti.x;
+        prob.img_pts[i].y   = pti.y;
+    }
+        
         
 	double r_norm = opt_result.r.norm();        
     result.residual = r_norm;    

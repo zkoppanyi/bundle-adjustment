@@ -205,9 +205,9 @@ int extract_problem_from_arguments(int nrhs, const mxArray *prhs[], problem &pro
     {       
         object_pt pt3d;
         pt3d.id      = (int)GET(obj_pts_arr, i, 0, obj_pts_n);
-        pt3d.x       = GET(obj_pts_arr, i, 1, obj_pts_n);
-        pt3d.y       = GET(obj_pts_arr, i, 2, obj_pts_n);
-        pt3d.z       = GET(obj_pts_arr, i, 3, obj_pts_n);
+        pt3d.x       =      GET(obj_pts_arr, i, 1, obj_pts_n);
+        pt3d.y       =      GET(obj_pts_arr, i, 2, obj_pts_n);
+        pt3d.z       =      GET(obj_pts_arr, i, 3, obj_pts_n);
         int type_id  = (int)GET(obj_pts_arr, i, 4, obj_pts_n);    
         
         switch(type_id)
@@ -384,11 +384,65 @@ void create_stoch_struct(const optimizer_result &optimizer_result, const stochas
         }
         else
         {
-            const char *fieldnames[] = {"status", "status_msg"};        
+            const char *fieldnames[] = {"J", "status", "status_msg"};        
             ret = mxCreateStructMatrix(1,1,2,fieldnames);
+
             mxSetFieldByNumber(ret, 0,0, mxCreateDoubleScalar(-1));
-            mxSetFieldByNumber(ret, 0,1, mxCreateString(stoch.status_msg));            
+            mxSetFieldByNumber(ret, 0,1, mxCreateDoubleScalar(-1));
+            mxSetFieldByNumber(ret, 0,2, mxCreateString(stoch.status_msg));    
+
+            // for testing, check: https://www.mathworks.com/help/matlab/apiref/mxsetjc.html
+            /*typedef Eigen::Triplet<double> T;
+            std::vector<T> data;
+            data.push_back(T(1,0,10));            
+            data.push_back(T(4,0,22));
+            data.push_back(T(2,1,33));
+            data.push_back(T(1,2,33));
+            data.push_back(T(4,2,33));
+            data.push_back(T(5,2,33));
+            
+            Eigen::SparseMatrix<double> m_test(10, 10);
+            m_test.setFromTriplets(data.begin(), data.end());
+            const Eigen::SparseMatrix<double>* J = &m_test; */
+            
+            const Eigen::SparseMatrix<double>* J = &optimizer_result.J;     
+            mxArray* mJ;
+            create_sparse_matrix(J, mJ);                       
+            mxSetFieldByNumber(ret, 0, 0, mJ);            
         }
+}
+
+void create_sparse_matrix(const Eigen::SparseMatrix<double>* mat, mxArray* &m_mat)
+{
+    size_t nzmax = mat->nonZeros();
+    size_t n = mat->rows();
+    size_t m = mat->cols();
+    m_mat = mxCreateSparse(n, m, nzmax, mxREAL);
+            
+    if (m_mat == NULL)
+    {
+        mexErrMsgTxt("Cannot allocate memory for Jacobian!");
+    }
+            
+    double  *pr = mxGetPr(m_mat);
+    mwIndex *ir = mxGetIr(m_mat);
+    mwIndex *jc = mxGetJc(m_mat);
+            
+    size_t nnz = 0;
+    size_t k;
+    jc[0] = 0;
+    for (k=0; k < mat->outerSize(); ++k)
+    {
+        for (Eigen::SparseMatrix<double>::InnerIterator it(*mat, k); it; ++it)
+        {
+            //mexPrintf("ir = %i (%i %i)\n", it.row(), it.row(), it.col());                    
+            pr[nnz] = it.value();
+            ir[nnz] = it.row();
+            nnz++;
+        }                
+        jc[k+1] = nnz;
+        //mexPrintf("jc = %i\n", nnz);
+    }
 }
 
 void create_problem_struct(const problem &prob, mxArray* &ret)

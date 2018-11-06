@@ -121,6 +121,21 @@ tic
 
 [sol, stoch] = ba_algo(img_pts, imgs0, obj_pts0, cams0);
 
+x0 = ba_problem(img_pts, imgs0, obj_pts0, cams0, 2);
+r = ba_problem(img_pts, imgs0, obj_pts0, cams0, x0, 1);
+J = ba_problem(img_pts, imgs0, obj_pts0, cams0, x0, 2);
+stoch.J = J;
+
+opts = optimoptions(@lsqnonlin,'SpecifyObjectiveGradient',true, 'Display', 'iter');
+%opts.Algorithm = 'levenberg-marquardt';
+x2 = lsqnonlin(@(x) ba_problem(img_pts, imgs0, obj_pts0, cams0, x, 1) ,x0, [], [], opts);
+
+sol.cams(2) = 1;
+x = ba_problem(sol.img_pts, sol.imgs, sol.obj_pts, sol.cams, 2);
+
+
+%%
+
 N = stoch.J'*stoch.J;
 if size(N,1) ~= rank(N)
     disp("Wrong J structure!")
@@ -167,8 +182,6 @@ opts3 = plotset;
 opts3.color_cam = 'b';
 opts3.line_width_cam = 2;
 plot_problem(1, sol.img_pts, sol.imgs, sol.obj_pts, sol.cams, opts3);
-return;
-
 
 % Sparsity pattern
 show_sparisty_pattern(stoch.J, 2);
