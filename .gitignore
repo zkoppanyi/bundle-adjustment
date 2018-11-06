@@ -1,6 +1,9 @@
 # Project ignores
 /Eigen
 
+# Matlab ignores
+*.asv
+
 # MEX files
 *.mexw64
 *.mexw32
@@ -37,3 +40,4 @@
 *.exe
 *.out
 *.app
+running_times.xlsx
