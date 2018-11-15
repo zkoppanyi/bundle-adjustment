@@ -11,6 +11,8 @@
 using namespace Eigen;
 using namespace std;
         
+double pix_scale = 1e3;
+
 /*
  *****************************************************
  * Calculate stochastic parameters
@@ -81,54 +83,8 @@ int bundle_adjustment(problem &prob, problem_result &result)
 	const double TolY = 1e-8;
     
     // initial guess
-    VectorXd x0 = VectorXd::Zero(prob.sum_unknowns);
-
-    for (size_t i = 0; i < prob.obj_pts.size(); i++)
-    {
-        object_pt pt = prob.obj_pts[i];
-        if (pt.type == KNOWN) continue;
-        
-        size_t idx_pt = pt.xid;
-        x0(idx_pt + 0) = pt.x;
-        x0(idx_pt + 1) = pt.y;
-        x0(idx_pt + 2) = pt.z;       
-     
-    }    
-    
-    for (size_t i = 0; i < prob.imgs.size(); i++)
-    {
-        img img = prob.imgs[i];
-        if (img.type == KNOWN) continue;
-
-        size_t idx_img = img.xid;
-        x0(idx_img + 0) = img.x;
-        x0(idx_img + 1) = img.y;
-        x0(idx_img + 2) = img.z;
-        x0(idx_img + 3) = img.omega;
-        x0(idx_img + 4) = img.phi;
-        x0(idx_img + 5) = img.kappa;        
-     
-    }    
-    
-    for (size_t i = 0; i < prob.cams.size(); i++)
-    {
-        camera cam = prob.cams[i];           
-        if (cam.type == KNOWN) continue;
-
-        size_t idx_cam = cam.xid;
-        x0(idx_cam + 0) = cam.f;
-        x0(idx_cam + 1) = cam.cx;
-        x0(idx_cam + 2) = cam.cy;
-        
-        if (cam.cam_type == CAM_TYPE_DISTORTED)
-        {
-            x0(idx_cam + 3) = cam.k1;
-            x0(idx_cam + 4) = cam.k2;
-            x0(idx_cam + 5) = cam.k3;
-            x0(idx_cam + 6) = cam.p1;
-            x0(idx_cam + 7) = cam.p2;       
-        }
-    }  
+    VectorXd x0;
+    create_x0(x0, prob);
 
     optimizer_result opt_result;
     VectorXd sol_vec = levenberg_marquardt(bundle_adjustment_fn, bundle_adjustment_jacobian, (void*)&prob, x0, TolX, TolY, opt_result);
@@ -310,8 +266,8 @@ int bundle_adjustment_jacobian(VectorXd x, Eigen::SparseMatrix<double> &J, void*
                 img_pt pt = prob->img_pts[i];
                 
                 //scaling for robustness
-                pt.x *= 1e3;
-                pt.y *= 1e3;
+                pt.x *= pix_scale;
+                pt.y *= pix_scale;
                 photo_jacobian_problem_camera_distort::populate(tripletList, (int)i*2, (int)idx_cam, obj_pt, img, cam, pt);
             }     
             else
@@ -334,6 +290,59 @@ int bundle_adjustment_jacobian(VectorXd x, Eigen::SparseMatrix<double> &J, void*
     
     //print(J);
 	return 0;
+}
+
+
+int create_x0(VectorXd &x0, const problem &prob)
+{
+    x0 = VectorXd::Zero(prob.sum_unknowns);
+
+    for (size_t i = 0; i < prob.obj_pts.size(); i++)
+    {
+        object_pt pt = prob.obj_pts[i];
+        if (pt.type == KNOWN) continue;
+        
+        size_t idx_pt = pt.xid;
+        x0(idx_pt + 0) = pt.x;
+        x0(idx_pt + 1) = pt.y;
+        x0(idx_pt + 2) = pt.z;       
+     
+    }    
+    
+    for (size_t i = 0; i < prob.imgs.size(); i++)
+    {
+        img img = prob.imgs[i];
+        if (img.type == KNOWN) continue;
+
+        size_t idx_img = img.xid;
+        x0(idx_img + 0) = img.x;
+        x0(idx_img + 1) = img.y;
+        x0(idx_img + 2) = img.z;
+        x0(idx_img + 3) = img.omega;
+        x0(idx_img + 4) = img.phi;
+        x0(idx_img + 5) = img.kappa;        
+     
+    }    
+    
+    for (size_t i = 0; i < prob.cams.size(); i++)
+    {
+        camera cam = prob.cams[i];           
+        if (cam.type == KNOWN) continue;
+
+        size_t idx_cam = cam.xid;
+        x0(idx_cam + 0) = cam.f;
+        x0(idx_cam + 1) = cam.cx;
+        x0(idx_cam + 2) = cam.cy;
+        
+        if (cam.cam_type == CAM_TYPE_DISTORTED)
+        {
+            x0(idx_cam + 3) = cam.k1;
+            x0(idx_cam + 4) = cam.k2;
+            x0(idx_cam + 5) = cam.k3;
+            x0(idx_cam + 6) = cam.p1;
+            x0(idx_cam + 7) = cam.p2;       
+        }
+    }  
 }
 
 /*
@@ -380,8 +389,8 @@ int backproject(const point3d &pt, img &img, const camera &cam, img_pt &pti)
     
     if (cam.cam_type == CAM_TYPE_DISTORTED)
     {   
-        double x_hat = (pti.x - cam.cx) * 1e+3;
-        double y_hat = (pti.y - cam.cy) * 1e+3;
+        double x_hat = (pti.x - cam.cx) * pix_scale;
+        double y_hat = (pti.y - cam.cy) * pix_scale;
         double r = sqrt(pow(x_hat, 2) + pow(y_hat, 2));
         double dx = x_hat * (cam.k1 * pow(r, 2) + cam.k2 * pow(r, 4) + cam.k3 * pow(r, 6)) + cam.p1*(pow(r,2) + 2*pow(x_hat,2)) + 2*cam.p2*x_hat*y_hat;
         double dy = y_hat * (cam.k1 * pow(r, 2) + cam.k2 * pow(r, 4) + cam.k3 * pow(r, 6)) + 2*cam.p1*x_hat*y_hat + cam.p2*(pow(r,2) + 2*pow(y_hat,2));

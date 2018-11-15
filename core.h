@@ -9,6 +9,7 @@
 #define MAX_MATRIX_SIZE (100000000/sizeof(double)) // 0.1 GB
 
 int init_problem(problem &prob);
+int create_x0(Eigen::VectorXd &x0, const problem &prob);
 
 int backproject(object_pt &obj_pt, img &img, const camera &cam, img_pt &pti);
 int backproject(const point3d &pt, img &img, const camera &cam, img_pt &pti);

@@ -7,7 +7,7 @@ UNKNOWN = 2;
 
 % Cameras       : ID, cam_type, f, cx, cy, type
 % Object points : ID, X, Y, Z, type
-% Images        : ID, X, Y, Z, omega, phi kappa, cam_id, type
+% Images        : ID, X, Y, Z, omega, phi, kappa, cam_id, type
 % Image points  : ID, x, y, img_id, obj_id, type
 
 scale = 4.87e-6;
@@ -17,16 +17,16 @@ cam1 = [0.05 -0.1*1e-4 1e-6];
 cams = [2 1 cam1 KNOWN];
 
 % generate tie points as grid
-objx = -100 : 10 : 100;
-objy = -100 : 10 : 100;
+objx = -100 : 25 : 100;
+objy = -100 : 25 : 100;
 [objx, objy] = meshgrid(objx, objy);
 objx = objx(:);
 objy = objy(:);
 n_tie_pts = length(objx);
 
 % generate control points as grid
-obj_ct_x = -100 : 80: 100;
-obj_ct_y = -100 : 80 : 100;
+obj_ct_x = -100 : 50: 100;
+obj_ct_y = -100 : 50 : 100;
 [obj_ct_x, obj_ct_y] = meshgrid(obj_ct_x, obj_ct_y);
 obj_ct_x = obj_ct_x(:);
 obj_ct_y = obj_ct_y(:);
@@ -39,8 +39,8 @@ obj_pts = [(1:n_test_pt)', objx, objy, (rand(n_test_pt, 1)-0.5)*20, ones(n_test_
    
 imgs = [];
 pt_id = 0;
-for k = -100 : 9 : 100 % cross flight
-    for i = -100 : 9 : 100
+for k = -100 : 15 : 100 % cross flight
+    for i = -100 : 15 : 100
         pt_id = pt_id + 1;
         x = i;
         y = i + k;
@@ -57,7 +57,6 @@ img_pts = backproject(img_pts, imgs, obj_pts, cams);
 toc
 disp('End backproject.')
 
-
 obj_pts0 = obj_pts;
 tie_pts_idx  = 1 : n_tie_pts;
 %obj_pts0(tie_pts_idx, 2:5) = repmat([0 0 0 UNKNOWN], length(tie_pts_idx), 1);
@@ -66,7 +65,8 @@ obj_pts0(tie_pts_idx, 2:4) = obj_pts(tie_pts_idx, 2:4)+3;
 control_pts_idx = find(obj_pts0(:, end) == KNOWN);
 
 %%  Remove points that are not on the image 
-to_remove = find(and(abs(img_pts(:,2)/scale) > 2000, abs(img_pts(:,3)/scale) > 2000));
+to_remove = find(and(abs(img_pts(:,2)/scale) > 960, abs(img_pts(:,3)/scale) > 540));
+%to_remove = find(and(abs(img_pts(:,2)/scale) > 2000, abs(img_pts(:,3)/scale) > 2000));
 img_pts(to_remove, :) = [];
 
 % remove points not seen by two images
@@ -88,9 +88,7 @@ for k = 1 : length(obj_pts0)
 end
 obj_pts0(rm_list, :) = [];
 
-%%
-
-% add error to image points
+%% Add error to image points
 pix_error = 20;
 img_pts_gt = img_pts;
 img_pts(:,2:3) = img_pts(:,2:3) + normrnd(0, pix_error*scale, size(img_pts, 1), 2);
@@ -109,10 +107,141 @@ imgs0(:, end) = UNKNOWN;
 disp('Starting bundle...');
 tic
 
-[sol, stoch] = ba_algo(img_pts, imgs0, obj_pts0, cams0);
-disp('End bundle.')
+%% Create graph
+n = size(imgs0, 1);
+A = zeros(n, n);
+for i  = 1 : n
+    pts_i = img_pts(img_pts(:, 4) == imgs0(i, 1), :);
 
-%return;
+    for j  = i+1 : n
+        pts_j = img_pts(img_pts(:, 4) == imgs0(j, 1), :);
+        [~, idx_i, idx_j] = intersect(pts_i(:,5), pts_j(:,5));
+        %if length(idx_i) > 0
+            %fprintf('%i %i n = %i\n', i, j, length(idx_i));
+            A(i, j) = length(idx_i);
+            A(j, i) = length(idx_i);
+        %end
+
+    end
+end
+G = graph(A);
+L = laplacian(G);
+%plot(G,'Layout','force')
+
+%% Clustering: Spatial clustering
+n_cluster = 2^2;
+
+minx = floor(min(imgs0(:, 2)));
+maxx = ceil(max(imgs0(:, 2)));
+miny = floor(min(imgs0(:, 3)));
+maxy = ceil(max(imgs0(:, 3)));
+dx = (maxx - minx) / sqrt(n_cluster);
+dy = (maxy - miny) / sqrt(n_cluster);
+
+clusters = {}; 
+k = 0;
+for i = minx : dx : maxx - dx
+    for j = miny : dy : maxy - dy
+        k = k + 1;
+        idx = find(and( and(i <= imgs0(:, 2), imgs0(:, 2) < i + dx), and(j <= imgs0(:, 3), imgs0(:, 3) < j + dy)));
+        clusters{k}.idx = idx;
+        fprintf('Cluster #%2i n = %3i [%6.1f, %6.1f; %6.1f %6.1f]\n', k, length(idx), i, i+dx, j, j+dy);
+    end
+end
+
+probs0.img_pts = img_pts;
+probs0.imgs = imgs0;
+probs0.obj_pts = obj_pts0;
+probs0.cams = cams0;
+
+for k = 1 : length(clusters)
+    idx = clusters{k}.idx;
+    clusters{k}.imgs    = imgs0(idx, :);
+    clusters{k}.cams    = probs0.cams( ismember( probs0.cams(:, 1), clusters{k}.imgs(:, 8) ), :);
+    
+    ids = clusters{k}.imgs(:, 1);
+    clusters{k}.img_pts = [];
+    clusters{k}.obj_pts = [];    
+    
+    for i = 1 : length(ids)
+        iidx = find(probs0.img_pts(:, 4) == ids(i));
+        clusters{k}.img_pts = [clusters{k}.img_pts;   probs0.img_pts(iidx, :)];
+        obj_idx = find(ismember( probs0.obj_pts(:, 1), probs0.img_pts(iidx, 5) ));
+        clusters{k}.obj_pts = [clusters{k}.obj_pts; probs0.obj_pts(obj_idx, :)];        
+    end    
+    
+    n_ctrl = 0;
+    if ~isempty(clusters{k}.obj_pts)
+        clusters{k}.obj_pts = unique(clusters{k}.obj_pts, 'row');
+        n_ctrl = length(find((clusters{k}.obj_pts(:, end) == KNOWN)));        
+    end
+    
+    
+    fprintf('Cluster #%i n = %4i, n_imgs: %4i, n_pts: %6i, n_obj_pts: %5i, n_cams: %2i n_ctrl: %3i\n', k, length(idx), size(clusters{k}.imgs, 1), size(clusters{k}.img_pts, 1), size(clusters{k}.obj_pts, 1), size(clusters{k}.cams, 1), n_ctrl );
+end
+n_ctrl = length(find((probs0.obj_pts(:, end) == KNOWN)));
+fprintf('Total                n_imgs: %4i, n_pts: %6i, n_obj_pts: %5i, n_cams: %2i n_ctrl: %3i\n', size(probs0.imgs, 1), size(probs0.img_pts, 1), size(probs0.obj_pts, 1), size(probs0.cams, 1), n_ctrl);
+
+%return
+
+%% Images 
+obj_pts_per_imgs = zeros(size(probs0.imgs, 1), 2);
+for k = 1 : size(probs0.imgs, 1)
+    idx = probs0.imgs(k, 1);
+    uobj = unique(probs0.img_pts( probs0.img_pts(:, 4) == idx, 5 ));
+    obj_pts_per_imgs(k, 1) = length(uobj)*3;
+    obj_pts_per_imgs(k, 2) = length(uobj)*3-9;
+end
+idx = find(obj_pts_per_imgs(:, 2)<0);
+r = sum(abs(obj_pts_per_imgs(idx, 2)));
+
+%%
+% run_time = zeros(length(clusters), 1);
+% for k = 1 : length(clusters)
+%     cluster = clusters{k};
+%     if ~isempty(cluster.idx)
+%         tic
+%         
+%         [sol, stoch] = ba_algo(cluster.img_pts, cluster.imgs, cluster.obj_pts, cluster.cams);
+%         J = get_jacobian(cluster.img_pts, cluster.imgs, cluster.obj_pts, cluster.cams);        
+%         N = J'*J;
+%         
+%         run_time(k) = toc;
+%         return
+%     end
+% end
+% return
+
+tic;
+%[sol, stoch] = ba_algo(probs0.img_pts, probs0.imgs, probs0.obj_pts, probs0.cams);
+J = get_jacobian(probs0.img_pts, probs0.imgs, probs0.obj_pts, probs0.cams); 
+
+N = J'*J;
+[~, N2] = balance(N);
+n_zeig = sum(eig(N2) <= eps)
+
+r2 = size(N2, 2) - rank(N2)
+%r3 = size(N, 2) - rank(N)
+r
+n_deg = full(diag(L));
+n_iso = sum(n_deg == 0);
+%n_deg_m = n_deg - 2;
+n_deg_m = sum(n_deg == 1);
+n_deg_m2 = sum(n_deg == 2);
+%sum(abs(n_deg_m)) + n_iso
+n_iso*9 + n_deg_m*6 + n_deg_m2*3
+
+
+
+return;
+
+L = chol(N);
+Linv = inv(L);
+Ninv = Linv'*Linv;
+detL = det(L)^2;
+
+run_time_ref = toc;
+return;
 %% Visualization
 figure(1); hold on;
 opts1 = plotset;
