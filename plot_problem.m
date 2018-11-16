@@ -1,5 +1,5 @@
 
-function plot_problem(plot_k, img_pts, imgs, obj_pts, cams, opts)
+function plot_problem(plot_k, arg2, arg3, arg4, arg5, arg6)
 
     KNOWN = 1;
     UNKNOWN = 2;
@@ -8,9 +8,32 @@ function plot_problem(plot_k, img_pts, imgs, obj_pts, cams, opts)
     %clf; 
     hold on;
 
-    if nargin < 6
-        opts = plotset;
-    end        
+    if ~isstruct(arg2)
+        
+        img_pts     = arg2;
+        imgs        = arg3;
+        obj_pts     = arg4;
+        cams        = arg5;
+        
+        if nargin < 6
+            opts = plotset;        
+        else
+            opts = arg6;                    
+        end 
+    else
+        
+        img_pts     = arg2.img_pts;
+        imgs        = arg2.imgs;
+        obj_pts     = arg2.obj_pts;
+        cams        = arg2.cams;
+        
+        if nargin < 3
+            opts = plotset;        
+        else
+            opts = arg3;                    
+        end                 
+
+    end
     
     %cam_scale = 1;
     cam_scale = opts.cam_scale;

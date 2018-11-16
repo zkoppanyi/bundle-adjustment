@@ -15,15 +15,15 @@ overlap_ratio = 0.8;                                                        % Ov
 f = 0.05;                                                                   % Focal length
 d = 15;                                                                     % In- and cross-track image distances
 h = 80;                                                                     % Flight height
-img_size = f * (d*overlap_ratio) / h / scale * 3;                           % Image size
+img_size = f * (d*overlap_ratio) / h / scale * 4;                           % Image size
 
 % Camera without distortion
 cam1 = [f -0.1*1e-4 1e-6];
 cams = [2 1 cam1 KNOWN];
 
 % generate tie points as grid
-objx = -250 : 10 : 250;
-objy = -250 : 10 : 250;
+objx = -250 : 15 : 250;
+objy = -250 : 15 : 250;
 [objx, objy] = meshgrid(objx, objy);
 objx = objx(:); % + (rand(length(objx(:)), 1)-0.5)*1;
 objy = objy(:); % + (rand(length(objy(:)), 1)-0.5)*1;
@@ -139,43 +139,237 @@ miny = floor(min(obj_pts0(:, 3)));
 maxy = ceil(max(obj_pts0(:, 3)))+1;
 %dx = (maxx - minx) / sqrt(n_cluster);
 %dy = (maxy - miny) / sqrt(n_cluster);
-
 dx = (maxx - minx) / 1;
 dy = (maxy - miny) / n_cluster;
 
-img_pts2 = [];
-obj_pts2 = [];
-
 clusters = {}; 
 k = 0;
+idx_start = 0;
 for i = minx : dx : maxx - dx
     for j = miny : dy : maxy - dy
         k = k + 1;
         
-        idx_obj = find(and( and(i <= obj_pts0(:, 2), obj_pts0(:, 2) < i + dx), and(j <= obj_pts0(:, 3), obj_pts0(:, 3) < j + dy)));
-        obj_pts2 = [obj_pts2; obj_pts0(idx_obj, :)];
+        oidx = find(and( and(i <= obj_pts0(:, 2), obj_pts0(:, 2) < i + dx), and(j <= obj_pts0(:, 3), obj_pts0(:, 3) < j + dy)));        
+        pdix = find(ismember(img_pts(:, 5), obj_pts0(oidx, 1)) );        
+        iidx = find(ismember(probs0.imgs(:, 1), img_pts(pdix, 4)));
+        cidx = find(ismember(probs0.cams(:, 1), probs0.imgs(iidx, 8) ));
         
-        idx_img_pts = find( ismember(img_pts(:, 5), obj_pts0(idx_obj, 1)) );
-        img_pts2 = [img_pts2; img_pts(idx_img_pts, :)];
+        % Unknowns' locations
+        clusters{k}.idx_obj     = [obj_pts0(oidx, 1),    oidx];                
+        clusters{k}.idx_img_pts = [img_pts(pdix, 1),     pdix];        
+        clusters{k}.idx_imgs    = [probs0.imgs(iidx, 1), iidx];       
+        clusters{k}.idx_cams    = [probs0.cams(cidx, 1), cidx];
         
-        clusters{k}.idx_obj = idx_obj;
-        clusters{k}.idx_img_pts = idx_img_pts;
-        fprintf('Cluster #%2i n = %3i [%6.1f, %6.1f; %6.1f %6.1f]\n', k, length(idx), i, i+dx, j, j+dy);
+        % Measurements' locations
+        clusters{k}.idx_start   = idx_start + 1;
+        clusters{k}.idx_end     = idx_start + length(pdix)*2;
+        idx_start               = idx_start + length(pdix)*2;        
+        
+        n_ctrl = length(find(obj_pts0(oidx, end) == KNOWN));        
+        n_sum_ctrl = length(find(obj_pts0(:, end) == KNOWN));        
+        fprintf('Cluster #%2i n = %3i [%6.1f, %6.1f; %6.1f %6.1f] n_ctrl= %5i/%5i \n', k, length(pdix), i, i+dx, j, j+dy, n_ctrl, n_sum_ctrl);
     end
 end
 
-probs0.img_pts = img_pts2;
-probs0.obj_pts = obj_pts2;
+% Measurements (rows) were reordered, so create a new problem
+img_pts2 = []; obj_pts2 = []; imgs2 = []; cams2 = [];
+for k = 1 : length(clusters)
+        cluster    = clusters{k};
+        img_pts2   = [img_pts2; probs0.img_pts(cluster.idx_img_pts(:, 2), :)];
+        obj_pts2   = [obj_pts2; probs0.obj_pts(cluster.idx_obj(:, 2), :)];
+        imgs2      = [imgs2;    probs0.imgs(cluster.idx_imgs(:, 2), :)];
+        cams2      = [cams2;    probs0.cams];
+        
+        cluster.img_pts  = probs0.img_pts(cluster.idx_img_pts(:, 2), :);
+        cluster.obj_pts  = probs0.obj_pts(cluster.idx_obj(:, 2), :);
+        cluster.imgs     = probs0.imgs(cluster.idx_imgs(:, 2), :);
+        cluster.cams     = probs0.cams;
+        clusters{k}      = cluster;
+end
+imgs2 	 = unique(imgs2, 'row');
+obj_pts2 = unique(obj_pts2, 'row');
+cams2    = unique(cams2, 'row');
 
-size(obj_pts0)
-size(obj_pts2)
+%% Check that the problem is same after clustering
 
-J = get_jacobian(probs0.img_pts, probs0.imgs, probs0.obj_pts, probs0.cams); 
+% Check sizes
+if ( size(img_pts2, 1) ~= size(probs0.img_pts, 1) ) && ( size(img_pts2, 2) ~= size(probs0.img_pts, 2) ), error('Dimensions mismatch!'); end
+if ( size(obj_pts2, 1) ~= size(probs0.obj_pts, 1) ) && ( size(obj_pts2, 2) ~= size(probs0.obj_pts, 2) ), error('Dimensions mismatch!'); end
+if ( size(imgs2   , 1) ~= size(probs0.imgs   , 1) ) && ( size(imgs2   , 2) ~= size(probs0.imgs   , 2) ), error('Dimensions mismatch!'); end
+if ( size(cams2   , 1) ~= size(probs0.cams   , 1) ) && ( size(cams2   , 2) ~= size(probs0.cams   , 2) ), error('Dimensions mismatch!'); end
+    
+% Check indeces, if runs without problem, indexing is ok!
+J = ba_problem(img_pts2, imgs2, obj_pts2, cams2); 
 
 % Check rank!
 N = J'*J;
 [~, N2] = balance(full(N));
-n_zeig = sum(eig(N2) <= eps);
+n_zeig = sum(eig(N2) <= eps); % number of zero eigenvalues
+
+if n_zeig ~= 0
+    disp('Problem is singular!');
+end
+
+%% Separate Jacobian 
+probs0.img_pts  = img_pts2;
+probs0.imgs     = imgs2;
+probs0.obj_pts  = obj_pts2;
+probs0.cams     = cams2;
+[J, r, idxs]    = ba_problem(probs0.img_pts, probs0.imgs, probs0.obj_pts, probs0.cams); 
+
+n = 1 : size(J, 1);
+%for k = 1 : length(clusters)
+all_coupled = [];
+for k = 1 : length(clusters)
+    
+    cluster = clusters{k};
+    cluster.coupled_imgs = []; cluster.uncoupled_imgs = []; 
+    cluster.coupled_objs = []; cluster.uncoupled_objs = []; 
+    cluster.coupled_cams = []; cluster.uncoupled_cams = []; 
+    
+    idx_cluster    = cluster.idx_start : cluster.idx_end;
+    idx_ncluster   = setdiff(n, idx_cluster);
+    
+    % Images
+    idx     = find( ismember(idxs.idx_imgs(:, 1), cluster.idx_imgs(:, 1) ));   
+    for i = 1 : length(idx)
+        iidx    = idxs.idx_imgs(idx(i), 2):idxs.idx_imgs(idx(i), 3);
+        if sum(sum( J(idx_ncluster, iidx) )) ~= 0            
+            cluster.coupled_imgs = [cluster.coupled_imgs, iidx];            
+            %fprintf('Image %3i: Coupled\n', idxs.idx_imgs(idx(i), 1));
+        else
+            cluster.uncoupled_imgs = [cluster.uncoupled_imgs, iidx];                        
+        end        
+    end   
+    
+    % Object points
+    idx         = ismember(idxs.idx_obj_pts(:, 1), cluster.idx_obj(:, 1) );    
+    idx_obj_pts = idxs.idx_obj_pts(idxs.idx_obj_pts(idx, 2) ~= -1, :);    % remove control points
+    for i = 1 : size(idx_obj_pts, 1)
+        oidx = idx_obj_pts(i, 2):idx_obj_pts(i, 3);
+        if sum(sum(J(idx_ncluster, oidx), 1)) ~= 0
+            cluster.coupled_objs = [cluster.coupled_objs, oidx];            
+            %fprintf('Object %3i: Coupled\n', idx_obj_pts(i, 1));
+        else
+             cluster.uncoupled_objs = [cluster.uncoupled_objs, oidx]; 
+        end
+    end   
+    
+    % Cameras
+    idx   = find(ismember(idxs.idx_cams(:, 1), cluster.idx_cams(:, 1) ));          
+    for i = 1 : size(idx, 1)
+        cidxx = idxs.idx_cams(idx(i), 2):idxs.idx_cams(idx(i), 3);
+        if sum(sum(J(idx_ncluster, cidxx), 1)) ~= 0
+            cluster.coupled_cams = [cluster.coupled_cams, cidxx];            
+            %fprintf('Cam %3i: Coupled\n', idxs.idx_cams(idx(i), 1));
+        else
+            cluster.uncoupled_cams = [cluster.uncoupled_cams, cidxx];
+        end
+    end     
+    
+    coupled     = [cluster.coupled_imgs, cluster.coupled_cams, cluster.coupled_objs];
+    all_coupled = [all_coupled, coupled];
+    
+    uncoupled = [cluster.uncoupled_imgs, cluster.uncoupled_cams, cluster.uncoupled_objs];
+    cluster.J = J(idx_cluster, uncoupled);
+    
+    cluster.r = r(idx_cluster);
+    
+    clusters{k} = cluster;
+    
+    fprintf('\nCluster #%i\n', k);
+    fprintf('Image     : U= %5i , C= %5i\n', length(cluster.uncoupled_imgs), length(cluster.coupled_imgs))
+    fprintf('Object pt : U= %5i , C= %5i\n', length(cluster.uncoupled_objs), length(cluster.coupled_objs))
+    fprintf('Camera    : U= %5i , C= %5i\n', length(cluster.uncoupled_cams), length(cluster.coupled_cams))
+end
+all_coupled = unique(all_coupled);
+
+for k = 1 : length(clusters)
+   cluster = clusters{k};
+   idx_cluster    = cluster.idx_start : cluster.idx_end;
+   clusters{k}.D = J(idx_cluster, all_coupled);  
+   clusters{k}.all_coupled = all_coupled;
+end
+
+%% Show spearated Jacobian
+sJ = sparse(size(J, 1), size(J, 2));
+col = 0;
+n = size(J, 1);
+for k = 1 : length(clusters)
+   cluster = clusters{k};
+   col_n = length(cluster.uncoupled_imgs) + length(cluster.uncoupled_cams) + length(cluster.uncoupled_objs);
+   sJ(cluster.idx_start : cluster.idx_end, (col+1):(col+col_n)) = cluster.J;
+   col = col + col_n;
+end
+
+idx_start_coupled = col;
+
+for k = 1 : length(clusters)
+   cluster = clusters{k};
+   col_n = length(cluster.all_coupled);
+   sJ(cluster.idx_start : cluster.idx_end, (col+1):(col+col_n)) = cluster.D;
+end
+
+idx_start_coupled+length(all_coupled)-size(J, 2) % ?= 0
+col+col_n-size(J, 2)  % ?= 0
+return
+
+show_sparisty_pattern(sJ);
+col = 0;
+for k = 1 : length(clusters)
+   cluster = clusters{k};
+   col_n = length(cluster.uncoupled_imgs) + length(cluster.uncoupled_cams) + length(cluster.uncoupled_objs);   
+   
+   viz_unc = [0, n-cluster.idx_start; 0, n-cluster.idx_end; size(J, 2), n-cluster.idx_end; size(J, 2), n-cluster.idx_start; 0, n-cluster.idx_start];
+   plot(viz_unc(:, 1), viz_unc(:, 2), 'g.-', 'LineWidth', 3);
+
+   viz_unc = [idx_start_coupled, n-cluster.idx_start; idx_start_coupled, n-cluster.idx_end; size(J, 2), n-cluster.idx_end; size(J, 2), n-cluster.idx_start; idx_start_coupled, n-cluster.idx_start];
+   plot(viz_unc(:, 1), viz_unc(:, 2), 'g.-', 'LineWidth', 3);
+   
+   viz_unc = [col, n-cluster.idx_start; col, n-cluster.idx_end; col+col_n, n-cluster.idx_end; col+col_n, n-cluster.idx_start; col, n-cluster.idx_start];
+   plot(viz_unc(:, 1), viz_unc(:, 2), 'r.-', 'LineWidth', 3);
+   
+   col = col + col_n;
+end
+
+%% Show problem
+% opts = plotset;
+% opts.is_show_rays = 0;
+% cols = 'rgbcyk';
+% for k = 1 : length(clusters)
+%     opts.color_cam = cols(k);
+%     plot_problem(1, clusters{k}, opts);
+% end
+% opts.color_cam = 'k';
+% plot_problem(1, [], server.imgs, probs0.obj_pts, probs0.cams, opts);
+
+%% Solve
+lJ = J;
+n = size(clusters{1}.D, 2);
+R = zeros(n, n);
+l = zeros(n, 1);
+for k = 1 : length(clusters)
+   cluster = clusters{k};
+   J = cluster.J;
+   N = J'*J;
+   D = cluster.D;
+   r = cluster.r;
+   
+   % calulcate inverse: Choelsky
+   L    = chol(N);
+   invL = inv(L);
+   Ninv = invL*invL';
+   % check result: norm(sum(Ninv - inv(N)))
+   
+   A = D'*J*Ninv*J';
+   R = R + D'*D - A*D; 
+   l = l + D'*r - A*r;
+   
+   %figure(k);
+   %spy(R)
+end
+%z = linsolve(R, l);
+z = pinv(R)*l;
 
 return;
 
