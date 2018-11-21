@@ -1,5 +1,7 @@
 # Project ignores
 /Eigen
+/figures
+/depricated
 
 # Matlab ignores
 *.asv

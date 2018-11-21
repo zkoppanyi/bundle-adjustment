@@ -68,7 +68,6 @@ img_pts = backproject(img_pts, imgs, obj_pts, cams);
 toc
 disp('End backproject.')
 
-
 obj_pts0 = obj_pts;
 tie_pts_idx  = 1 : n_tie_pts;
 %obj_pts0(tie_pts_idx, 2:5) = repmat([0 0 0 UNKNOWN], length(tie_pts_idx), 1);
@@ -121,28 +120,24 @@ tic
 
 [sol, stoch] = ba_algo(img_pts, imgs0, obj_pts0, cams0);
 
-x0 = ba_problem(img_pts, imgs0, obj_pts0, cams0, 2);
-r = ba_problem(img_pts, imgs0, obj_pts0, cams0, x0, 1);
-J = ba_problem(img_pts, imgs0, obj_pts0, cams0, x0, 2);
-stoch.J = J;
+%x0 = ba_problem(img_pts, imgs0, obj_pts0, cams0, 2);
+%r = ba_problem(img_pts, imgs0, obj_pts0, cams0, x0, 1);
+%J = ba_problem(img_pts, imgs0, obj_pts0, cams0, x0, 2);
+%stoch.J = J;
 
-opts = optimoptions(@lsqnonlin,'SpecifyObjectiveGradient',true, 'Display', 'iter');
+%opts = optimoptions(@lsqnonlin,'SpecifyObjectiveGradient',true, 'Display', 'iter');
 %opts.Algorithm = 'levenberg-marquardt';
-x2 = lsqnonlin(@(x) ba_problem(img_pts, imgs0, obj_pts0, cams0, x, 1) ,x0, [], [], opts);
-
-sol.cams(2) = 1;
-x = ba_problem(sol.img_pts, sol.imgs, sol.obj_pts, sol.cams, 2);
-
+%x2 = lsqnonlin(@(x) ba_problem(img_pts, imgs0, obj_pts0, cams0, x, 1) ,x0, [], [], opts);
+%sol.cams(2) = 1;
+%x = ba_problem(sol.img_pts, sol.imgs, sol.obj_pts, sol.cams, 2);
 
 %%
-
 N = stoch.J'*stoch.J;
 if size(N,1) ~= rank(N)
     disp("Wrong J structure!")
 else
     disp("J structure is fine!")    
 end
-
 toc
 disp('End bundle.')
 

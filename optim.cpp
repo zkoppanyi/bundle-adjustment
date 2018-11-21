@@ -31,7 +31,7 @@ bool any_greater_than(VectorXd v1, VectorXd v2)
  *****************************************************
  */
 
-#define PRINT_ITERATION_DETAILS
+//#define PRINT_ITERATION_DETAILS
 
 //#define SOLVER_TYPE 1  // Sparse Choelsky without analyzePatter
 //#define SOLVER_TYPE 3  // Conjugate gradient; preconditioing might be needed

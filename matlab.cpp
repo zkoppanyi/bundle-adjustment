@@ -44,6 +44,20 @@ void eigen2mat(double d, mxArray* &ret)
     ret = mxCreateDoubleScalar(d);
 }
 
+void mat2eigen(const mxArray* m_arr, Eigen::VectorXd &A )
+{
+    double* arr = mxGetPr(m_arr);
+    size_t m = mxGetN(m_arr);
+    size_t n = mxGetM(m_arr);
+    
+    A = Eigen::VectorXd::Zero(n);
+    for (size_t i = 0; i < n; i++)
+    {
+        double val = GET(arr, i, 0, n);
+        A(i) = val;
+    }
+}
+
 //
 // MODE = 1 : read all;
 // MODE = 2 : read for backprojection

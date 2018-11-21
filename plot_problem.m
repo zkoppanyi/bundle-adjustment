@@ -55,7 +55,7 @@ function plot_problem(plot_k, arg2, arg3, arg4, arg5, arg6)
         phi   = imgs(i, 6);
         kappa = imgs(i, 7);
 
-        plot3(cam_x, cam_y, cam_z, 'r*');
+        plot3(cam_x, cam_y, cam_z, 'r.');
         R = get_rotation_matrix(omega, phi, kappa);
         cam_dir = [0 0 f] * R * cam_scale;
         plot3([cam_x cam_x+cam_dir(1)], [cam_y cam_y+cam_dir(2)], [cam_z cam_z+cam_dir(3)], [opts.color_cam '-'], 'LineWidth', opts.line_width_cam);

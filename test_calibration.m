@@ -5,6 +5,9 @@
 
 clear variables; clc; close all;
 
+KNOWN = 1;
+UNKNOWN = 2;
+
 %% Settings
 
 % Cameras       : ID, cam_type, f, cx, cy, type
@@ -61,14 +64,14 @@ cams0 = [2 2 cam10 1; 3 2 cam20 1];
 %cams0 = [1 1 1 1 1 2; 2 1 1 1 1 2];
 %cams0 = cams;
 
-imgs0 = [1 0 0 100   0 0 0 2 2;
-         2 0 0 50    0 0 0 2 2;
-         3 0 65 50   0 0 0 2 2;
-         4 65 65 50  0 0 0 2 2;
-         5 0 0 100   0 0 0 3 2;
-         6 0 0 50    0 0 0 3 2;
-         7 0 65 50   0 0 0 3 2;
-         8 65 65 50  0 0 0 3 2];
+imgs0 = [1 0 0 100   0 0 0 2 UNKNOWN;
+         2 0 0 50    0 0 0 2 UNKNOWN;
+         3 0 65 50   0 0 0 2 UNKNOWN;
+         4 65 65 50  0 0 0 2 UNKNOWN;
+         5 0 0 100   0 0 0 3 UNKNOWN;
+         6 0 0 50    0 0 0 3 UNKNOWN;
+         7 0 65 50   0 0 0 3 UNKNOWN;
+         8 65 65 50  0 0 0 3 UNKNOWN];
     
 %imgs0 = imgs;
 

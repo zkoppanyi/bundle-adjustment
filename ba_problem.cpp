@@ -22,19 +22,19 @@ void mexFunction(int nlhs, mxArray *plhs[],
     // Load problem
     problem prob;    
     if (extract_problem_from_arguments(nrhs, prhs, prob) != 0) return;
-        
-    
-    if (nlhs < 1)
-    {
-        LOG_ERROR("Need a return value!\n");
-        return;
-    }
-    
+                
     init_problem(prob);        
 
     // Init x0
     VectorXd x0;
-    create_x0(x0, prob);
+    if (nrhs > 4)
+    {
+        mat2eigen(prhs[4], x0 );
+    }
+    else
+    {        
+        create_x0(x0, prob);
+    }
     
     // Residuals 
     VectorXd r = bundle_adjustment_fn(x0, (void*)&prob);
@@ -117,12 +117,15 @@ void mexFunction(int nlhs, mxArray *plhs[],
                 }
             }              
         }  
-
-        const char *fieldnames[] = {"idx_imgs", "idx_cams", "idx_obj_pts"};        
-        plhs[2]  = mxCreateStructMatrix(1,1,3,fieldnames);
-        mxSetFieldByNumber(plhs[2], 0,0, m_idx_imgs);
-        mxSetFieldByNumber(plhs[2], 0,1, m_idx_cams);
-        mxSetFieldByNumber(plhs[2], 0,2, m_idx_obj);
+        mxArray* m_x0;
+        eigen2mat(x0, m_x0);
+        
+        const char *fieldnames[] = {"x0", "idx_imgs", "idx_cams", "idx_obj_pts"};        
+        plhs[2]  = mxCreateStructMatrix(1,1,4,fieldnames);
+        mxSetFieldByNumber(plhs[2], 0,0, m_x0);
+        mxSetFieldByNumber(plhs[2], 0,1, m_idx_imgs);
+        mxSetFieldByNumber(plhs[2], 0,2, m_idx_cams);
+        mxSetFieldByNumber(plhs[2], 0,3, m_idx_obj);
     }
     
 }

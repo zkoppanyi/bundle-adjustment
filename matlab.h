@@ -30,6 +30,7 @@ void print(Eigen::VectorXd v);
 
 void eigen2mat(const Eigen::MatrixXd &A, mxArray* &ret);
 void eigen2mat(double d, mxArray* &ret);
+void mat2eigen(const mxArray* m_arr, Eigen::VectorXd &A);
 
 void create_stoch_struct(const optimizer_result &optimizer_result, const stochastic_params &stoch, mxArray* &ret);
 void create_problem_struct(const problem &prob, mxArray* &ret);
