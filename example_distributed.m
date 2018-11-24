@@ -28,9 +28,9 @@ nnz(eig(N)) == size(N, 1)
 x = J \ r;
 
 % Directly with Matlab's inv
-%N1 = J1'*J1;
-%N1inv = inv(N1);
-%P1 = D1' * J1 * N1inv  * J1';
+N1 = J1'*J1;
+N1inv = inv(N1);
+P1 = D1' * J1 * N1inv  * J1';
 
 % Cholesky decomposition
 % N1 = J1'*J1;
@@ -89,5 +89,68 @@ xd = [x1; x2; z];
 norm(x - xd)
 
 %%
+% Method 2
+
+% 1st system
+N1 = [J1 D1]'*[J1 D1];
+L1 = chol(N1, 'upper');
+
+[jn] = size(J1, 2);
+[dn] = size(D1, 2);
+R1 = L1(1:jn, 1:jn);
+T1 = L1(1:jn, (jn+1):end);
+U1 = L1((jn+1):end, (jn+1):end);
+
+L12 = [R1, T1; zeros(dn, jn), U1];
+norm(L12-L1)
+
+opts.UT = false; opts.LT = true;
+b = linsolve(L1', ([J1 D1]' * r1), opts);      % solve upper triangular system
+b1 = b((jn+1):end);
+
+% 2nd system
+N2 = [J2 D2]'*[J2 D2];
+L2 = chol(N2, 'upper');
+
+[jn] = size(J2, 2);
+[dn] = size(D2, 2);
+R2 = L2(1:jn, 1:jn);
+T2 = L2(1:jn, (jn+1):end);
+U2 = L2((jn+1):end, (jn+1):end);
+
+L22 = [R2, T2; zeros(dn, jn), U2];
+norm(L22-L2)
+
+opts.UT = false; opts.LT = true;
+b = linsolve(L2', ([J2 D2]' * r2), opts);      % solve upper triangular system
+
+%opts.UT = true; opts.LT = false;
+%x1 = linsolve(L, b, opts);                    % solve lower triangular system
+
+b2 = b((jn+1):end);
+
+% Combine
+A = [U1; U2];
+c = [b1; b2];
+z = A \ c;
+
+% Substitue back
+% First system
+opts.UT = false; opts.LT = true;
+bx = linsolve(R1', (J1'*r1 - J1'*D1*z), opts);      % solve upper triangular system
+opts.UT = true; opts.LT = false;
+x1 = linsolve(R1, bx, opts);                        % solve lower triangular system
+
+% Second system
+opts.UT = false; opts.LT = true;
+bx = linsolve(R2', (J2'*r2 - J2'*D2*z), opts);      % solve upper triangular system
+opts.UT = true; opts.LT = false;
+x2 = linsolve(R2, bx, opts);                        % solve lower triangular system
+
+x = inv(J'*J)*J'*r;
+xd = [x1; x2; z];
+norm(x - xd)
+
+
 
 

@@ -13,28 +13,30 @@ UNKNOWN = 2;
 scale = 4.87e-6;                                                            % Pixel sensor's size in m
 overlap_ratio = 0.6;                                                        % Overlap
 f = 0.05;                                                                   % Focal length
-d = 6;                                                                     % In- and cross-track image distances
+d = 15;                                                                     % In- and cross-track image distances
 h = 80;                                                                     % Flight height
 img_size = f * (d*overlap_ratio) / h / scale * 4;                           % Image size
 pix_error = 0;
+
+method = 1;
 
 % Camera without distortion
 cam1 = [f -0.1*1e-4 1e-6];
 cams = [2 1 cam1 KNOWN];
 
 % generate tie points as grid
-objx = -250 : 3 : 250;
-objy = -250 : 3 : 250;
+objx = -250 : 5 : 250;
+objy = -250 : 5 : 250;
 [objx, objy] = meshgrid(objx, objy);
 objx = objx(:) + (rand(length(objx(:)), 1)-0.5)*10;
 objy = objy(:) + (rand(length(objy(:)), 1)-0.5)*10;
 n_tie_pts = length(objx);
 
 % generate control points as grid
-obj_ct_x = -50 : 10 : -40;
-obj_ct_y = -50 : 10 : -40;
-%obj_ct_x = -200 : 50 : 200;
-%obj_ct_y = -200 : 50 : 200;
+%obj_ct_x = -50 : 10 : -40;
+%obj_ct_y = -50 : 10 : -40;
+obj_ct_x = -200 : 50 : 200;
+obj_ct_y = -200 : 50 : 200;
 [obj_ct_x, obj_ct_y] = meshgrid(obj_ct_x, obj_ct_y);
 obj_ct_x = obj_ct_x(:) + (rand(length(obj_ct_x(:)), 1)-0.5)*10;
 obj_ct_y = obj_ct_y(:) + (rand(length(obj_ct_y(:)), 1)-0.5)*10;
@@ -136,7 +138,7 @@ probs0.cams = cams0;
 %plot(G,'Layout','force')
 
 %% Clustering: Spatial clustering
-n_cluster = 4^2; 
+n_cluster = 2^2; 
 
 minx = floor(min(obj_pts0(:, 2)));
 maxx = ceil(max(obj_pts0(:, 2)))+1;
@@ -195,7 +197,7 @@ end
 imgs2 	 = unique(imgs2, 'row');
 obj_pts2 = unique(obj_pts2, 'row');
 cams2    = unique(cams2, 'row');
-
+            
 %% Check that the problem is same after clustering
 
 % % Check sizes
@@ -275,7 +277,7 @@ for iter = 1 : 5
         idx         = ismember(idxs.idx_obj_pts(:, 1), cluster.idx_obj(:, 1));    
         idx_obj_pts = idxs.idx_obj_pts(idx, :);    
         for i = 1 : size(idx_obj_pts, 1)
-            if idx_obj_pts(i, 2) < 1, continue; end % ok, this is a control point
+            if idx_obj_pts(i, 2) < 1, continue; end % ok, this is a control point          
             oidx = idx_obj_pts(i, 2):idx_obj_pts(i, 3);
             if sum(sum(J(idx_ncluster, oidx), 1)) ~= 0
                 cluster.coupled_objs = [cluster.coupled_objs, oidx];            
@@ -298,7 +300,8 @@ for iter = 1 : 5
             end
         end         
 
-        coupled     = [cluster.coupled_imgs, cluster.coupled_cams, cluster.coupled_objs];
+        coupled = [cluster.coupled_imgs, cluster.coupled_cams, cluster.coupled_objs];
+        cluster.coupled = coupled;
         all_coupled = [all_coupled, coupled];
 
         cluster.uncoupled   = [cluster.uncoupled_imgs, cluster.uncoupled_cams, cluster.uncoupled_objs];
@@ -431,91 +434,133 @@ for iter = 1 : 5
        N = lJ'*lJ;
        D = cluster.D;
        r = cluster.r;
+       
+       if method == 1
+           % Calulcate projection: Choelsky + inverse
 
-       % Calulcate projection: Choelsky + inverse
-       
-       %j   = colperm(N);
-       %L   = chol(N(j, j));
-       %L(j, j) = L;       
-       
-%        fprintf('Cholesky factorization at #%i ... ', k)
-%        tic
-%        L    = chol(N);      
-%        invL = L \ clusters{k}.I;
-%        Ninv = invL*invL';
-%        P = D'*lJ*Ninv*lJ';              
-%        t_distrib = t_distrib + toc;
-%        fprintf('done. \n')
-       
-       tic
-       %Ninv = N \ eye(size(N, 1));
-       Ninv = inv(N);
-       P = D'*lJ*Ninv*lJ';
-       t_distrib = t_distrib + toc;
-       
-       % check result: norm(sum(Ninv - inv(N)))
-       %return
+           %j   = colperm(N);
+           %L   = chol(N(j, j));
+           %L(j, j) = L;       
 
-       % Calulcate projection: QR + inverse
-%        %tic
-%        [C, R2] = qr(N, eye(size(N, 1)));
-%        Ninv = R2\C;
-%        %Ninv = inv(R2)*Q';
-%        P = D'*lJ*Ninv*lJ';
-%        %toc
-       
-       
-       % Calulcate projection: QR with pseudo inverse.
-%        %tic      
-         %R2 = qr(lJ);
-%        [Q, R2] = qr(lJ);
-%        %toc       
-%        R2 = L;
-%        Q = lJ*invL;
-%        %E  = eye(rank(full(R2)));
-%        E  = eye(rank(full(R2)));
-%        n = size(E, 1);
-%        I = zeros(size(R2, 1));
-%        I(1:n, 1:n) = E;
-%        P = D' * Q * I * Q';    
-%        %toc
+    %        fprintf('Cholesky factorization at #%i ... ', k)
+    %        tic
+    %        L    = chol(N);      
+    %        invL = L \ clusters{k}.I;
+    %        Ninv = invL*invL';
+    %        P = D'*lJ*Ninv*lJ';              
+    %        t_distrib = t_distrib + toc;
+    %        fprintf('done. \n')
 
-       %disp('Adding...')
-       tic
-       clusters{k}.R = D'*D - P*D; 
-       clusters{k}.l = D'*r - P*r;       
-       t_distrib = t_distrib + toc;
-       
-       clusters{k}.Ninv = Ninv;
+           tic
+           %Ninv = N \ eye(size(N, 1));
+           Ninv = inv(N);
+           P = D'*lJ*Ninv*lJ';
+           t_distrib = t_distrib + toc;
+
+           % check result: norm(sum(Ninv - inv(N)))
+           %return
+
+           % Calulcate projection: QR + inverse
+    %        %tic
+    %        [C, R2] = qr(N, eye(size(N, 1)));
+    %        Ninv = R2\C;
+    %        %Ninv = inv(R2)*Q';
+    %        P = D'*lJ*Ninv*lJ';
+    %        %toc
+
+
+           % Calulcate projection: QR with pseudo inverse.
+    %        %tic      
+             %R2 = qr(lJ);
+    %        [Q, R2] = qr(lJ);
+    %        %toc       
+    %        R2 = L;
+    %        Q = lJ*invL;
+    %        %E  = eye(rank(full(R2)));
+    %        E  = eye(rank(full(R2)));
+    %        n = size(E, 1);
+    %        I = zeros(size(R2, 1));
+    %        I(1:n, 1:n) = E;
+    %        P = D' * Q * I * Q';    
+    %        %toc
+
+           %disp('Adding...')
+           tic
+           clusters{k}.R = D'*D - P*D; 
+           clusters{k}.l = D'*r - P*r;       
+           t_distrib = t_distrib + toc;       
+           clusters{k}.Ninv = Ninv;
+           t_distrib = t_distrib + toc;
+       end
+
+       if method == 2
+            tic
+            fprintf('Cholesky factorization at #%i ... ', k)
+            clusters{k}.idx_u = find((sum(D, 1)) ~= 0);
+            D = clusters{k}.D(:, clusters{k}.idx_u);
+            
+            [jn] = size(lJ, 2);
+            [dn] = size(D, 2);
+            L    = chol([lJ D]'*[lJ D]); 
+            %[L, ~, ~] = ldl([lJ D]'*[lJ D]);
+            b = L' \ ([lJ D]' * r); % use sparse solver
+    
+            clusters{k}.R = L(1:jn, 1:jn);
+            clusters{k}.U = L((jn+1):end, (jn+1):end);
+            clusters{k}.b = b((jn+1):end);    
+            fprintf(' done.\n');
+             t_distrib = t_distrib + toc;
+       end
+
     end
     
-    R = sparse(n, n);
-    l = zeros(n, 1);
-    for k = 1 : length(clusters)
-        R = R + clusters{k}.R;
-        l = l + clusters{k}.l;
-    end
-    
-    disp('Calculate coupled system...')
-    tic
-    z = R \ l;
-    %z = pinv(R)*l;
-    t_distrib = t_distrib + toc;
-
-    disp('Calculate uncoupled systems...')
-    for k = 1 : length(clusters)
-        lJ = clusters{k}.J;
-        D = clusters{k}.D;
-        r = clusters{k}.r;
-        Ninv = clusters{k}.Ninv;
-
+    if method == 1
+        R = sparse(n, n);
+        l = zeros(n, 1);
+        for k = 1 : length(clusters)
+            R = R + clusters{k}.R;
+            l = l + clusters{k}.l;
+        end
+        
+        disp('Calculate coupled system...')
         tic
-        clusters{k}.dx = Ninv*(lJ'*r - lJ'*D*z);        
-        %clusters{k}.dx = (lJ'*lJ) \ (lJ'*r - lJ'*D*z);        
+        z = R \ l;
+        %z = pinv(R)*l;
         t_distrib = t_distrib + toc;
+
+        disp('Calculate uncoupled systems...')
+        for k = 1 : length(clusters)
+            lJ = clusters{k}.J;
+            D = clusters{k}.D;
+            r = clusters{k}.r;
+            Ninv = clusters{k}.Ninv;
+
+            tic
+            clusters{k}.dx = Ninv*(lJ'*r - lJ'*D*z);        
+            %clusters{k}.dx = (lJ'*lJ) \ (lJ'*r - lJ'*D*z);        
+            t_distrib = t_distrib + toc;
+        end
     end
 
-    
+    if method == 2
+         U = []; b = [];
+         for k = 1 : length(clusters)
+            Ui = zeros(size(clusters{k}.U, 1), length(all_coupled));
+            Ui(:, clusters{k}.idx_u) = clusters{k}.U;
+            U = [U; Ui];
+            b = [b; clusters{k}.b];
+         end
+        tic
+        z = U \ b;
+        t_distrib = t_distrib + toc;
+        for k = 1 : length(clusters)
+            cluster = clusters{k};
+            tic
+            bx = cluster.R' \ (cluster.J'*cluster.r - cluster.J'*cluster.D*z);    
+            clusters{k}.dx = cluster.R \ bx;                        
+            t_distrib = t_distrib + toc;
+         end
+    end
     
     %% Solve full problem with Gauss-Newton
     disp('Calculate full solution');
@@ -540,9 +585,6 @@ for iter = 1 : 5
     
     x0 = x0 - dx;
     [J, r, idxs]    = ba_problem(probs0.img_pts, probs0.imgs, probs0.obj_pts, probs0.cams, x0); 
-    
-
-    
     
     %% Report
     fprintf('Iteration #%i\n', iter);
