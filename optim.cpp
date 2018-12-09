@@ -256,11 +256,11 @@ VectorXd levenberg_marquardt(VectorXd (*fn)(VectorXd, void*), int (*jacobian)(Ve
 
             if (l == 0)
             {
-                /*VectorXd diag =  MatrixXd(A).inverse().diagonal();
+                VectorXd diag =  MatrixXd(A).inverse().diagonal();
                 double max_pos = diag.maxCoeff();
-                double max_neg = abs(diag.minCoeff());*/
+                double max_neg = abs(diag.minCoeff());
                 
-                VectorXd diag = A.diagonal();
+                /*VectorXd diag = A.diagonal();
                 double max_pos = diag(0);
                 double max_neg = diag(0);
                 for (int k=0; k<diag.size();k++)
@@ -269,7 +269,7 @@ VectorXd levenberg_marquardt(VectorXd (*fn)(VectorXd, void*), int (*jacobian)(Ve
                 	max_pos = max_pos > 1/diagk ? max_pos : 1/diagk;
                 	max_neg = max_neg < 1/diagk ? max_neg : 1/diagk;
                 }
-				max_neg = abs(max_neg);
+				max_neg = abs(max_neg);*/
 
                 double abs_max = max_pos > max_neg ? max_pos : max_neg;
                 lc = 1 / abs_max;
